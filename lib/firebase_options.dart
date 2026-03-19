@@ -19,7 +19,7 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyB6O7gSu2AfyxJuxrBFjc_Pdpqw3gflAz8',
+    apiKey: '############ USE your api key #################',
     appId: '1:1014569507613:web:b35b4882455f0dd23c1ff4',
     messagingSenderId: '1014569507613',
     projectId: 'linkup-academic-app',
@@ -29,7 +29,7 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyB6O7gSu2AfyxJuxrBFjc_Pdpqw3gflAz8', // Sharing same API Key for simplicity if not available in JSON
+    apiKey: '############ USE your api key #################', // Sharing same API Key for simplicity if not available in JSON
     appId: '1:1014569507613:android:9d4f6a7d9b8c7e6f5a4b3c', // Placeholder, usually from google-services.json
     messagingSenderId: '1014569507613',
     projectId: 'linkup-academic-app',
@@ -38,7 +38,7 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyB6O7gSu2AfyxJuxrBFjc_Pdpqw3gflAz8',
+    apiKey: '############ USE your api key #################',
     appId: '1:1014569507613:ios:8c7d6f5e4d3c2b1a0f9e8d', // Placeholder
     messagingSenderId: '1014569507613',
     projectId: 'linkup-academic-app',
