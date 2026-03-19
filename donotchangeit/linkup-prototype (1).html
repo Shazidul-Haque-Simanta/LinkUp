@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LinkUp – Mobile Wireframe Prototype</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,sans-serif;transition:background .3s;min-height:100vh}
+  button{cursor:pointer;font-family:inherit}
+  input{font-family:inherit}
+  ::-webkit-scrollbar{width:4px}
+  ::-webkit-scrollbar-thumb{background:#ccc;border-radius:4px}
+
+  /* ── OUTER SHELL ── */
+  #app{display:flex;flex-direction:column;align-items:center;padding:24px 12px;min-height:100vh;transition:background .3s}
+  .outer-title{font-size:22px;font-weight:800;letter-spacing:-.5px;transition:color .3s;text-align:center}
+  .outer-sub{font-size:13px;margin-top:4px;text-align:center;transition:color .3s}
+
+  /* Dark toggle pill */
+  .dm-pill{display:flex;align-items:center;gap:10px;margin:14px 0 18px;border-radius:30px;padding:8px 18px;border:1.5px solid;box-shadow:0 1px 6px rgba(0,0,0,.12);transition:background .3s,border-color .3s}
+  .dm-track{width:50px;height:26px;border-radius:13px;position:relative;cursor:pointer;transition:background .3s;flex-shrink:0}
+  .dm-thumb{position:absolute;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:left .25s}
+
+  /* Screen nav pills */
+  .screen-nav{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:720px;margin-bottom:28px}
+  .snav-btn{padding:5px 12px;border-radius:20px;font-size:12px;border:1.5px solid;cursor:pointer;transition:all .2s;font-family:inherit}
+
+  /* ── PHONE FRAME ── */
+  .phone{width:390px;min-height:844px;border-radius:44px;overflow:hidden;display:flex;flex-direction:column;border:2.5px solid;box-shadow:0 8px 40px rgba(0,0,0,.22);transition:background .3s,border-color .3s;position:relative}
+  .status-bar{padding:14px 24px 4px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;transition:background .3s}
+  .status-time{font-size:12px;font-weight:600}
+  .status-icons{display:flex;gap:5px;align-items:center}
+  .bat{width:16px;height:8px;border-radius:2px;position:relative;border:1.5px solid}
+  .bat-fill{position:absolute;left:1px;top:1px;width:10px;height:4px;border-radius:1px}
+  .sig{display:flex;gap:1px;align-items:flex-end}
+  .sig-bar{width:3px;border-radius:1px}
+  .phone-body{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+  /* ── SCREENS ── */
+  .screen{display:none;flex:1;flex-direction:column;overflow:hidden}
+  .screen.active{display:flex}
+
+  /* Scrollable area */
+  .scroll{flex:1;overflow-y:auto;padding:16px 20px}
+
+  /* Header bar */
+  .hdr{display:flex;align-items:center;padding:14px 20px;gap:12px;border-bottom:1px solid;flex-shrink:0;transition:background .3s,border-color .3s}
+  .hdr-title{font-size:17px;font-weight:700}
+  .hdr-spacer{flex:1}
+
+  /* Bottom nav */
+  .bnav{display:flex;border-top:1px solid;padding:8px 0 18px;flex-shrink:0;transition:background .3s,border-color .3s}
+  .bnav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;padding:4px 0;font-family:inherit}
+  .bnav-label{font-size:10px}
+  .bnav-dot{width:20px;height:2px;border-radius:1px;margin-top:1px}
+
+  /* Cards */
+  .card{border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;gap:12px;align-items:center;transition:background .3s}
+  .card-body{flex:1;min-width:0}
+  .card-title{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:2px}
+  .card-sub{font-size:11px;margin-bottom:4px}
+  .card-stats{display:flex;gap:10px;align-items:center;font-size:11px}
+
+  /* File pill */
+  .fpill{width:36px;height:44px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .fpill-inner{width:20px;height:24px;border-radius:2px;position:relative;display:flex;align-items:flex-end;justify-content:center;padding-bottom:3px}
+  .fpill-corner{position:absolute;top:0;right:0;width:6px;height:6px;border-bottom-left-radius:3px}
+  .fpill-label{font-size:7px;font-weight:700}
+
+  /* Avatar */
+  .avatar{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0}
+
+  /* Inputs */
+  .finput{width:100%;border-radius:10px;padding:12px 14px;font-size:14px;border:1px solid;outline:none;transition:background .3s;font-family:inherit}
+  .fselect{width:100%;border-radius:10px;padding:12px 14px;font-size:14px;border:1px solid;transition:background .3s;font-family:inherit}
+
+  /* Buttons */
+  .btn-primary{border:none;border-radius:10px;padding:13px 20px;font-weight:600;font-size:15px;width:100%;transition:background .3s,color .3s;font-family:inherit}
+  .btn-outline{background:transparent;border-radius:10px;padding:13px 20px;font-weight:600;font-size:15px;border:1.5px solid;transition:background .3s,color .3s;font-family:inherit}
+  .btn-sm{border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;font-family:inherit}
+  .btn-icon{border:none;border-radius:10px;padding:13px;font-size:14px;font-family:inherit}
+
+  /* Chips */
+  .chip{padding:6px 14px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;flex-shrink:0;border:none;font-family:inherit;transition:background .2s,color .2s}
+  .filter-chip{padding:5px 12px;border-radius:20px;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;border:none;font-family:inherit}
+
+  /* Section title */
+  .sec-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .sec-label{font-weight:700;font-size:15px}
+  .sec-action{font-size:12px;cursor:pointer}
+
+  /* Toggle switch */
+  .toggle-track{width:44px;height:24px;border-radius:12px;position:relative;cursor:pointer;transition:background .25s;flex-shrink:0}
+  .toggle-thumb{position:absolute;top:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:left .25s}
+
+  /* Search bar */
+  .searchbar{border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px}
+
+  /* Onboarding dots */
+  .dot{height:8px;border-radius:4px;transition:width .2s,background .2s}
+
+  /* Divider */
+  .divider{display:flex;align-items:center;gap:10px;margin:16px 0}
+  .divider-line{flex:1;height:1px}
+
+  /* Quick action tiles */
+  .qa-tile{flex:1;border-radius:12px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;transition:background .3s}
+  .qa-icon{font-size:20px}
+  .qa-label{font-size:10px;text-align:center}
+
+  /* Comment */
+  .comment-bubble{border-radius:10px;padding:8px 12px;flex:1}
+  .comment-author{font-size:11px;font-weight:600;margin-bottom:3px}
+  .comment-text{font-size:12px}
+
+  /* Rating stars */
+  .star-btn{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;border:none;font-family:inherit}
+
+  /* Notification row */
+  .notif-row{display:flex;gap:14px;padding:14px 20px;border-bottom:1px solid;align-items:flex-start;cursor:pointer;transition:background .3s}
+  .notif-icon{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+  .notif-dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex-shrink:0}
+
+  /* Settings row */
+  .settings-row{padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid;cursor:pointer;transition:background .3s}
+  .settings-row-left{display:flex;gap:12px;align-items:center}
+  .settings-icon{font-size:18px}
+  .settings-label{font-size:14px}
+  .settings-section-label{padding:12px 20px 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px}
+
+  /* Tag chips in upload */
+  .tag-chip{border-radius:6px;padding:3px 8px;font-size:12px;display:inline-flex;align-items:center;gap:4px}
+
+  /* PDF viewer */
+  .pdf-header{padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#1E1E1E}
+  .pdf-filename{font-size:13px;font-weight:600;color:#DDD}
+  .pdf-icons{display:flex;gap:14px}
+  .pdf-page{background:#fff;border-radius:4px;box-shadow:0 4px 20px rgba(0,0,0,.5);padding:24px 28px;overflow:hidden}
+  .pdf-line{height:8px;border-radius:4px;margin-bottom:8px}
+  .pdf-figure{border-radius:4px;margin:12px auto;display:flex;align-items:center;justify-content:center}
+  .pdf-page-label{position:absolute;top:12px;right:16px;background:rgba(0,0,0,.5);border-radius:12px;padding:4px 10px;font-size:12px;color:#fff}
+  .pdf-bottom{padding:14px 20px 28px;flex-shrink:0;background:#1E1E1E}
+
+  /* Splash */
+  .splash-logo{width:88px;height:88px;border-radius:24px;background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center}
+  .splash-title{font-size:22px;font-weight:800;color:#fff;letter-spacing:-.5px}
+  .splash-sub{font-size:13px;color:rgba(255,255,255,.55);margin-top:6px}
+  .splash-dots{display:flex;gap:8px;margin-top:40px}
+  .splash-dot{height:8px;border-radius:4px}
+
+  /* Flow hint */
+  .flow-hint{margin-top:24px;border-radius:14px;padding:14px 20px;max-width:390px;width:100%;border:1px solid;transition:background .3s,border-color .3s}
+
+  /* Profile tabs */
+  .profile-tab{flex:1;padding:12px;background:none;border:none;border-bottom:2px solid transparent;font-size:14px;cursor:pointer;font-family:inherit;transition:border-color .2s,color .2s}
+
+  /* Range input */
+  input[type=range]{width:100%;cursor:pointer}
+
+  /* Google btn */
+  .google-btn{width:100%;border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;font-size:14px;font-weight:600;font-family:inherit;border:1.5px solid;transition:background .3s}
+  .google-icon{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+
+  /* Checkbox */
+  .fake-checkbox{width:18px;height:18px;border-radius:4px;border:1.5px solid;margin-top:2px;flex-shrink:0}
+
+  /* Page slide simulation lines */
+  .page-line{height:8px;border-radius:4px;margin-bottom:8px}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Title -->
+  <div style="margin-bottom:6px;text-align:center">
+    <div class="outer-title" id="outer-title">LinkUp</div>
+    <div class="outer-sub" id="outer-sub">Mid-Fidelity Mobile Wireframe Prototype · 15 Screens</div>
+  </div>
+
+  <!-- Dark mode toggle -->
+  <div class="dm-pill" id="dm-pill">
+    <span style="font-size:16px">☀️</span>
+    <div class="dm-track" id="dm-track" onclick="toggleDark()">
+      <div class="dm-thumb" id="dm-thumb" style="left:3px"></div>
+    </div>
+    <span style="font-size:16px">🌙</span>
+    <span id="dm-label" style="font-size:12px;font-weight:600;margin-left:4px">Light Mode</span>
+  </div>
+
+  <!-- Screen nav -->
+  <div class="screen-nav" id="screen-nav"></div>
+
+  <!-- Phone -->
+  <div class="phone" id="phone">
+    <!-- Status bar -->
+    <div class="status-bar" id="status-bar">
+      <span class="status-time" id="status-time">9:41</span>
+      <div class="status-icons">
+        <div class="bat" id="bat"><div class="bat-fill" id="bat-fill"></div></div>
+        <div class="sig">
+          <div class="sig-bar" id="s1" style="height:3px"></div>
+          <div class="sig-bar" id="s2" style="height:5px"></div>
+          <div class="sig-bar" id="s3" style="height:7px"></div>
+          <div class="sig-bar" id="s4" style="height:9px"></div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" id="wifi-icon">
+          <path d="M1.5 8.5a13 13 0 0121 0M5 12a9 9 0 0114 0M8.5 15.5a5 5 0 017 0M12 19h.01"/>
+        </svg>
+      </div>
+    </div>
+    <div class="phone-body" id="phone-body">
+
+      <!-- 1. SPLASH -->
+      <div class="screen active" id="screen-splash" style="background:#3A3A3A;align-items:center;justify-content:center;gap:24px;padding:40px 28px">
+        <div class="splash-logo">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#FFF" stroke-width="1.5" stroke-linecap="round">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+          </svg>
+        </div>
+        <div style="text-align:center">
+          <div class="splash-title">LinkUp</div>
+          <div class="splash-sub">Your campus knowledge network</div>
+        </div>
+        <div class="splash-dots">
+          <div class="splash-dot" style="width:8px;background:rgba(255,255,255,.3)"></div>
+          <div class="splash-dot" style="width:24px;background:#fff"></div>
+          <div class="splash-dot" style="width:8px;background:rgba(255,255,255,.3)"></div>
+        </div>
+      </div>
+
+      <!-- 2. ONBOARDING -->
+      <div class="screen" id="screen-onboarding" style="flex-direction:column">
+        <div style="flex:1;display:flex;flex-direction:column;padding:24px 28px 36px" id="ob-wrap">
+          <div style="text-align:right;margin-bottom:12px">
+            <span style="font-size:13px;cursor:pointer" class="c-muted" onclick="go('login')">Skip</span>
+          </div>
+          <div id="ob-illustration" style="border-radius:20px;flex:1;max-height:300px;display:flex;align-items:center;justify-content:center;margin-bottom:40px">
+            <div style="text-align:center">
+              <div id="ob-emoji" style="font-size:48px;margin-bottom:8px">📤</div>
+              <div style="font-size:11px" class="c-muted">Illustration Placeholder</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;justify-content:center;margin-bottom:28px" id="ob-dots">
+            <div class="dot" id="od0" style="width:24px"></div>
+            <div class="dot" id="od1" style="width:8px"></div>
+            <div class="dot" id="od2" style="width:8px"></div>
+          </div>
+          <div id="ob-title" style="font-weight:800;font-size:22px;margin-bottom:12px;line-height:1.2" class="c-primary">Share Study Resources</div>
+          <div id="ob-desc" style="font-size:14px;line-height:1.6;margin-bottom:36px" class="c-muted">Upload lecture notes, past exams, assignments and help your fellow students excel in their studies.</div>
+          <button class="btn-primary c-btn-bg c-btn-text" id="ob-btn" onclick="obNext()">Next →</button>
+        </div>
+      </div>
+
+      <!-- 3. LOGIN -->
+      <div class="screen" id="screen-login">
+        <div class="scroll" style="padding:20px 28px">
+          <div style="margin-bottom:32px;margin-top:16px">
+            <div style="font-size:26px;font-weight:800" class="c-primary">Welcome back 👋</div>
+            <div style="font-size:14px;margin-top:6px" class="c-muted">Sign in to your account</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:20px">
+            <input class="finput c-input-bg c-border c-primary" placeholder="University email" type="email"/>
+            <input class="finput c-input-bg c-border c-primary" placeholder="Password" type="password"/>
+            <div style="text-align:right"><span style="font-size:13px;cursor:pointer" class="c-accent">Forgot password?</span></div>
+          </div>
+          <button class="btn-primary c-btn-bg c-btn-text" style="margin-bottom:16px" onclick="go('home')">Log In</button>
+          <div class="divider">
+            <div class="divider-line c-border-bg"></div>
+            <span style="font-size:12px" class="c-muted">or</span>
+            <div class="divider-line c-border-bg"></div>
+          </div>
+          <button class="google-btn c-white-bg c-border" onclick="go('home')">
+            <div class="google-icon c-highlight-bg c-primary">G</div>
+            <span class="c-primary">Continue with Google</span>
+          </button>
+          <div style="text-align:center;margin-top:28px;font-size:14px" class="c-muted">
+            Don't have an account? <span style="font-weight:700;cursor:pointer" class="c-primary" onclick="go('register')">Sign Up</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. REGISTER -->
+      <div class="screen" id="screen-register" style="flex-direction:column">
+        <div class="hdr c-white-bg c-border" style="border-bottom:1px solid">
+          <span onclick="go('login')" style="cursor:pointer" class="c-primary"><?xml version="1.0"?>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          </span>
+          <span class="hdr-title c-primary">Create Account</span>
+        </div>
+        <div class="scroll" style="padding:16px 28px 28px">
+          <div style="display:flex;flex-direction:column;gap:13px">
+            <input class="finput c-input-bg c-border c-primary" placeholder="Full name"/>
+            <input class="finput c-input-bg c-border c-primary" placeholder="University email" type="email"/>
+            <input class="finput c-input-bg c-border c-primary" placeholder="Password" type="password"/>
+            <div class="fselect c-input-bg c-border c-placeholder" style="border-radius:10px;padding:12px 14px;font-size:14px">Select University ▾</div>
+            <div style="display:flex;gap:10px">
+              <div class="fselect c-input-bg c-border c-placeholder" style="flex:1;border-radius:10px;padding:12px 14px;font-size:14px">Department ▾</div>
+              <div class="fselect c-input-bg c-border c-placeholder" style="flex:1;border-radius:10px;padding:12px 14px;font-size:14px">Semester ▾</div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:10px;margin-top:4px">
+              <div class="fake-checkbox c-input-bg c-border"></div>
+              <span style="font-size:13px;line-height:1.5" class="c-muted">I agree to the Terms of Service and Privacy Policy</span>
+            </div>
+            <button class="btn-primary c-btn-bg c-btn-text" style="margin-top:8px" onclick="go('home')">Create Account</button>
+            <div style="text-align:center;font-size:13px" class="c-muted">Already have an account? <span style="font-weight:700;cursor:pointer" class="c-primary" onclick="go('login')">Log In</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. HOME -->
+      <div class="screen" id="screen-home" style="flex-direction:column">
+        <div class="c-white-bg" style="padding:10px 20px 0;flex-shrink:0">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <div>
+              <div style="font-size:12px" class="c-muted">Good morning,</div>
+              <div style="font-size:18px;font-weight:800" class="c-primary">Shazidul Haque 👋</div>
+            </div>
+            <div style="display:flex;gap:12px;align-items:center">
+              <span onclick="go('notifications')" style="cursor:pointer" class="c-primary">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9 M13.73 21a2 2 0 01-3.46 0"/></svg>
+              </span>
+              <div class="avatar" style="width:36px;height:36px;font-size:14px;background:#AAAAAA">S</div>
+            </div>
+          </div>
+          <div class="searchbar c-input-bg" style="margin-bottom:14px" onclick="go('search')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke"><path d="M11 19A8 8 0 1019 11 8 8 0 0011 19zM21 21l-4.35-4.35"/></svg>
+            <span class="c-placeholder">Search resources, subjects…</span>
+          </div>
+          <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:14px" id="cat-chips"></div>
+        </div>
+        <div class="scroll c-bg" id="home-scroll">
+          <div style="display:flex;gap:10px;margin-bottom:20px">
+            <div class="qa-tile c-white-bg" style="box-shadow:0 1px 4px rgba(0,0,0,.1)" onclick="go('studyGroups')"><span class="qa-icon">👥</span><span class="qa-label c-muted">Study Groups</span></div>
+            <div class="qa-tile c-white-bg" style="box-shadow:0 1px 4px rgba(0,0,0,.1)" onclick="go('forum')"><span class="qa-icon">💬</span><span class="qa-label c-muted">Forum</span></div>
+            <div class="qa-tile c-white-bg" style="box-shadow:0 1px 4px rgba(0,0,0,.1)" onclick="go('bookmarks')"><span class="qa-icon">🔖</span><span class="qa-label c-muted">Saved</span></div>
+            <div class="qa-tile c-white-bg" style="box-shadow:0 1px 4px rgba(0,0,0,.1)" onclick="go('settings')"><span class="qa-icon">⚙️</span><span class="qa-label c-muted">Settings</span></div>
+          </div>
+          <div class="sec-title"><span class="sec-label c-primary">🔥 Trending</span><span class="sec-action c-accent">See all</span></div>
+          <div id="home-trending"></div>
+          <div class="sec-title" style="margin-top:4px"><span class="sec-label c-primary">📂 Latest Uploads</span><span class="sec-action c-accent">See all</span></div>
+          <div id="home-latest"></div>
+        </div>
+        <div class="bnav c-navbg c-border" id="bnav-home"></div>
+      </div>
+
+      <!-- 6. SEARCH -->
+      <div class="screen" id="screen-search" style="flex-direction:column">
+        <div class="c-white-bg" style="padding:12px 20px;flex-shrink:0">
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
+            <div class="c-input-bg" style="flex:1;border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:8px">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke"><path d="M11 19A8 8 0 1019 11 8 8 0 0011 19zM21 21l-4.35-4.35"/></svg>
+              <span style="font-size:14px" class="c-placeholder">Search resources…</span>
+            </div>
+            <span style="font-size:14px;cursor:pointer;white-space:nowrap" class="c-accent" onclick="go('home')">Cancel</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span class="filter-chip c-chip-bg c-accent">Subject ▾</span>
+            <span class="filter-chip c-chip-bg c-accent">Course Code ▾</span>
+            <span class="filter-chip c-chip-bg c-accent">File Type ▾</span>
+            <span class="filter-chip c-chip-bg c-accent">Rating ▾</span>
+          </div>
+        </div>
+        <div class="scroll c-bg">
+          <div style="font-size:12px;margin-bottom:10px" class="c-muted">Showing 12 results</div>
+          <div id="search-results"></div>
+        </div>
+        <div class="bnav c-navbg c-border" id="bnav-search"></div>
+      </div>
+
+      <!-- 7. UPLOAD -->
+      <div class="screen" id="screen-upload" style="flex-direction:column">
+        <div class="hdr c-white-bg c-border">
+          <span onclick="go('home')" style="cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></span>
+          <span class="hdr-title c-primary">Upload Resource</span>
+        </div>
+        <div class="scroll c-bg">
+          <div class="c-chip-bg" style="border:2px dashed;border-color:var(--border);border-radius:14px;padding:30px 20px;display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:20px;cursor:pointer">
+            <div class="c-highlight-bg" style="width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4 M17 8l-5-5-5 5 M12 3v12"/></svg>
+            </div>
+            <div style="font-weight:600;font-size:14px" class="c-primary">Tap to upload file</div>
+            <div style="font-size:12px" class="c-muted">PDF, DOC, PPT, ZIP — max 50MB</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:13px">
+            <div><div style="font-size:12px;font-weight:600;margin-bottom:5px" class="c-accent">Resource Title *</div><input class="finput c-input-bg c-border c-primary" placeholder="e.g. Data Structures Complete Notes"/></div>
+            <div><div style="font-size:12px;font-weight:600;margin-bottom:5px" class="c-accent">Subject *</div><div class="c-input-bg c-border c-placeholder" style="border-radius:10px;padding:12px 14px;font-size:14px;border:1px solid">Select subject ▾</div></div>
+            <div><div style="font-size:12px;font-weight:600;margin-bottom:5px" class="c-accent">Course Code</div><input class="finput c-input-bg c-border c-primary" placeholder="e.g. CS301"/></div>
+            <div>
+              <div style="font-size:12px;font-weight:600;margin-bottom:5px" class="c-accent">Tags</div>
+              <div class="c-input-bg c-border" style="border-radius:10px;padding:10px 14px;display:flex;gap:6px;flex-wrap:wrap;border:1px solid">
+                <span class="tag-chip c-highlight-bg c-primary">notes <span style="font-size:10px;cursor:pointer">×</span></span>
+                <span class="tag-chip c-highlight-bg c-primary">exam <span style="font-size:10px;cursor:pointer">×</span></span>
+                <span style="font-size:12px" class="c-placeholder">Add tag…</span>
+              </div>
+            </div>
+            <div><div style="font-size:12px;font-weight:600;margin-bottom:5px" class="c-accent">Description</div><div class="c-input-bg c-border c-placeholder" style="border-radius:10px;padding:12px 14px;font-size:14px;min-height:80px;line-height:1.5;border:1px solid">Brief description of the resource…</div></div>
+            <button class="btn-primary c-btn-bg c-btn-text" style="margin-top:8px" onclick="go('home')">Upload Resource</button>
+          </div>
+        </div>
+        <div class="bnav c-navbg c-border" id="bnav-upload"></div>
+      </div>
+
+      <!-- 8. RESOURCE DETAIL -->
+      <div class="screen" id="screen-detail" style="flex-direction:column">
+        <div class="hdr c-white-bg c-border" style="justify-content:space-between">
+          <span onclick="go('home')" style="cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></span>
+          <span class="hdr-title c-primary">Resource Detail</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8 M16 6l-4-4-4 4 M12 2v13"/></svg>
+        </div>
+        <div class="scroll c-bg">
+          <div class="c-highlight-bg c-border" onclick="go('pdfViewer')" style="border-radius:14px;height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;margin-bottom:18px;cursor:pointer;border:1.5px dashed">
+            <div class="fpill c-highlight-bg"><div class="fpill-inner c-accent-bg" style="background:var(--accent)"><div class="fpill-corner" style="background:var(--bg)"></div><span class="fpill-label" style="color:var(--btn-text)">PDF</span></div></div>
+            <div style="font-size:12px" class="c-muted">Tap to preview PDF</div>
+            <div style="font-size:11px" class="c-placeholder">36 pages</div>
+          </div>
+          <div style="font-weight:800;font-size:17px;margin-bottom:8px" class="c-primary">Data Structures - Complete Notes</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+            <div class="avatar" style="width:28px;height:28px;font-size:11px;background:#AAAAAA">S</div>
+            <div>
+              <div style="font-size:12px;font-weight:600" class="c-primary">Shazidul Haque</div>
+              <div style="font-size:11px" class="c-muted">CS Dept · 2 days ago</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:16px">
+            <span class="filter-chip c-chip-bg c-accent">⭐ 4.8</span>
+            <span class="filter-chip c-chip-bg c-accent">↓ 1.2k downloads</span>
+            <span class="filter-chip c-chip-bg c-accent">📚 CS301</span>
+          </div>
+          <div style="font-size:13px;line-height:1.6;margin-bottom:18px" class="c-muted">Comprehensive lecture notes covering all topics from Data Structures course including arrays, linked lists, trees, graphs, and algorithm analysis. Includes solved examples and practice problems.</div>
+          <div style="display:flex;gap:4px;margin-bottom:18px" id="star-row"></div>
+          <div style="display:flex;gap:10px;margin-bottom:24px">
+            <button class="btn-primary c-btn-bg c-btn-text" style="flex:2;border-radius:10px;padding:13px">⬇ Download</button>
+            <button class="btn-icon c-chip-bg" style="flex:1">🔖</button>
+            <button class="btn-icon c-chip-bg" style="flex:1">↗</button>
+          </div>
+          <div style="border-top:1px solid;padding-top:16px" class="c-border-top">
+            <div class="sec-title"><span class="sec-label c-primary">Comments (8)</span></div>
+            <div id="comments-list"></div>
+            <div style="display:flex;gap:10px;align-items:center">
+              <div class="avatar" style="width:28px;height:28px;font-size:11px;background:#AAAAAA">S</div>
+              <div class="c-input-bg" style="flex:1;border-radius:20px;padding:10px 14px;font-size:13px" class="c-placeholder">Add a comment…</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 9. PDF VIEWER -->
+      <div class="screen" id="screen-pdfViewer" style="background:#2A2A2A;flex-direction:column">
+        <div class="pdf-header">
+          <span onclick="go('detail')" style="cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DDD" stroke-width="1.8" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></span>
+          <span class="pdf-filename">Data Structures Notes.pdf</span>
+          <div class="pdf-icons">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DDD" stroke-width="1.8" stroke-linecap="round"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DDD" stroke-width="1.8" stroke-linecap="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8 M16 6l-4-4-4 4 M12 2v13"/></svg>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;background:#333;position:relative">
+          <div class="pdf-page" style="width:320px;height:450px">
+            <div style="font-weight:700;font-size:14px;color:#222;margin-bottom:12px;border-bottom:1.5px solid #EEE;padding-bottom:8px">Chapter 3: Trees & Binary Search Trees</div>
+            <div class="page-line" style="background:#E0E0E0;width:80%"></div>
+            <div class="page-line" style="background:#F0F0F0;width:100%"></div>
+            <div class="page-line" style="background:#F0F0F0;width:100%"></div>
+            <div class="page-line" style="background:#F0F0F0;width:60%"></div>
+            <div class="page-line" style="background:#E0E0E0;width:100%"></div>
+            <div class="page-line" style="background:#F0F0F0;width:80%"></div>
+            <div class="page-line" style="background:#F0F0F0;width:100%"></div>
+            <div class="pdf-figure" style="width:60%;height:80px;background:#EBEBEB"><span style="font-size:11px;color:#999">Figure 3.1</span></div>
+            <div class="page-line" style="background:#F0F0F0;width:90%"></div>
+            <div class="page-line" style="background:#F0F0F0;width:70%"></div>
+            <div class="page-line" style="background:#F0F0F0;width:100%"></div>
+            <div class="page-line" style="background:#E0E0E0;width:90%"></div>
+          </div>
+          <div class="pdf-page-label">12 / 36</div>
+        </div>
+        <div class="pdf-bottom">
+          <input type="range" value="33" style="width:100%;accent-color:#FFF"/>
+          <div style="display:flex;justify-content:space-between;margin-top:4px">
+            <span style="font-size:11px;color:#888">Page 1</span>
+            <span style="font-size:11px;color:#888">Page 36</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 10. PROFILE -->
+      <div class="screen" id="screen-profile" style="flex-direction:column">
+        <div class="hdr c-white-bg c-border" style="justify-content:space-between">
+          <span style="font-size:17px;font-weight:800" class="c-primary">My Profile</span>
+          <span onclick="go('settings')" style="cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>
+        </div>
+        <div class="scroll c-bg" style="padding:0">
+          <div class="c-white-bg" style="padding:20px;display:flex;flex-direction:column;align-items:center;border-bottom:1px solid var(--border)">
+            <div style="position:relative;margin-bottom:12px">
+              <div class="avatar" style="width:76px;height:76px;font-size:28px;background:#AAAAAA">S</div>
+              <div style="position:absolute;bottom:0;right:0;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px" class="c-btn-bg c-btn-text">✎</div>
+            </div>
+            <div style="font-size:18px;font-weight:800" class="c-primary">Shazidul Haque</div>
+            <div style="font-size:13px;margin-top:3px" class="c-muted">State University · Computer Science</div>
+            <div style="font-size:12px;margin-top:2px" class="c-placeholder">Semester 5</div>
+            <div style="display:flex;gap:28px;margin-top:16px">
+              <div style="text-align:center"><div style="font-size:18px;font-weight:800" class="c-primary">24</div><div style="font-size:11px" class="c-muted">Uploads</div></div>
+              <div style="text-align:center"><div style="font-size:18px;font-weight:800" class="c-primary">1.4k</div><div style="font-size:11px" class="c-muted">Downloads</div></div>
+              <div style="text-align:center"><div style="font-size:18px;font-weight:800" class="c-primary">312</div><div style="font-size:11px" class="c-muted">Followers</div></div>
+            </div>
+            <button class="btn-outline c-btn-bg-outline c-primary" style="margin-top:14px;padding:8px 16px;font-size:13px">Edit Profile</button>
+          </div>
+          <div style="display:flex;border-bottom:1px solid var(--border)" class="c-white-bg">
+            <button class="profile-tab c-primary" id="ptab-uploaded" onclick="switchProfileTab('uploaded')" style="font-weight:700;border-bottom-color:var(--primary)">📤 Uploaded</button>
+            <button class="profile-tab c-muted" id="ptab-saved" onclick="switchProfileTab('saved')">🔖 Saved</button>
+          </div>
+          <div style="padding:16px 20px" id="profile-resources"></div>
+        </div>
+        <div class="bnav c-navbg c-border" id="bnav-profile"></div>
+      </div>
+
+      <!-- 11. BOOKMARKS -->
+      <div class="screen" id="screen-bookmarks" style="flex-direction:column">
+        <div class="hdr c-white-bg c-border">
+          <span onclick="go('profile')" style="cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></span>
+          <span class="hdr-title c-primary">Saved Resources</span>
+        </div>
+        <div class="scroll c-bg" id="bookmarks-list"></div>
+        <div class="bnav c-navbg c-border" id="bnav-bookmarks"></div>
+      </div>
+
+      <!-- 12. NOTIFICATIONS -->
+      <div class="screen" id="screen-notifications" style="flex-direction:column">
+        <div class="hdr c-white-bg c-border">
+          <span onclick="go('home')" style="cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></span>
+          <span class="hdr-title c-primary">Notifications</span>
+        </div>
+        <div class="scroll c-bg" style="padding:0" id="notif-list"></div>
+      </div>
+
+      <!-- 13. STUDY GROUPS -->
+      <div class="screen" id="screen-studyGroups" style="flex-direction:column">
+        <div class="hdr c-white-bg c-border" style="justify-content:space-between">
+          <span onclick="go('home')" style="cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></span>
+          <span class="hdr-title c-primary">Study Groups</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke"><path d="M12 5v14M5 12h14"/></svg>
+        </div>
+        <div class="c-white-bg" style="padding:14px 20px 0;flex-shrink:0">
+          <div class="searchbar c-input-bg" style="margin-bottom:14px">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke"><path d="M11 19A8 8 0 1019 11 8 8 0 0011 19zM21 21l-4.35-4.35"/></svg>
+            <span class="c-placeholder">Search groups…</span>
+          </div>
+        </div>
+        <div class="scroll c-bg" style="padding:4px 20px 16px">
+          <button class="btn-outline c-btn-bg-outline c-primary" style="width:100%;margin:4px 0 16px">+ Create New Group</button>
+          <div id="groups-list"></div>
+        </div>
+      </div>
+
+      <!-- 14. FORUM -->
+      <div class="screen" id="screen-forum" style="flex-direction:column">
+        <div class="hdr c-white-bg c-border" style="justify-content:space-between">
+          <span onclick="go('home')" style="cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></span>
+          <span class="hdr-title c-primary">Discussion Forum</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke"><path d="M11 19A8 8 0 1019 11 8 8 0 0011 19zM21 21l-4.35-4.35"/></svg>
+        </div>
+        <div class="scroll c-bg">
+          <button class="btn-primary c-btn-bg c-btn-text" style="margin-bottom:16px">+ Ask a Question</button>
+          <div id="forum-list"></div>
+        </div>
+      </div>
+
+      <!-- 15. SETTINGS -->
+      <div class="screen" id="screen-settings" style="flex-direction:column">
+        <div class="hdr c-white-bg c-border">
+          <span onclick="go('profile')" style="cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></span>
+          <span class="hdr-title c-primary">Settings</span>
+        </div>
+        <div class="scroll c-bg" style="padding:0">
+          <div class="c-white-bg" style="padding:16px 20px;display:flex;gap:12px;align-items:center;border-bottom:1px solid var(--border)">
+            <div class="avatar" style="width:50px;height:50px;font-size:20px;background:#AAAAAA">S</div>
+            <div>
+              <div style="font-weight:700;font-size:15px" class="c-primary">Shazidul Haque</div>
+              <div style="font-size:13px" class="c-muted">shazidul.haque@university.edu</div>
+            </div>
+          </div>
+          <!-- Account -->
+          <div class="settings-section-label c-muted">Account</div>
+          <div class="settings-row c-white-bg c-border"><div class="settings-row-left"><span class="settings-icon">👤</span><span class="settings-label c-primary">Edit Profile</span></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke-muted"><path d="M9 18l6-6-6-6"/></svg></div>
+          <div class="settings-row c-white-bg c-border"><div class="settings-row-left"><span class="settings-icon">🔒</span><span class="settings-label c-primary">Change Password</span></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke-muted"><path d="M9 18l6-6-6-6"/></svg></div>
+          <!-- Preferences -->
+          <div class="settings-section-label c-muted">Preferences</div>
+          <div class="settings-row c-white-bg c-border">
+            <div class="settings-row-left"><span class="settings-icon" id="dm-settings-icon">🌙</span><span class="settings-label c-primary">Dark Mode</span></div>
+            <div class="toggle-track" id="settings-dm-track" onclick="toggleDark()"><div class="toggle-thumb" id="settings-dm-thumb" style="left:2px"></div></div>
+          </div>
+          <div class="settings-row c-white-bg c-border">
+            <div class="settings-row-left"><span class="settings-icon">🔔</span><span class="settings-label c-primary">Push Notifications</span></div>
+            <div class="toggle-track c-btn-bg" id="notif-track" onclick="toggleNotif()" style="background:var(--primary)"><div class="toggle-thumb" id="notif-thumb" style="left:22px"></div></div>
+          </div>
+          <div class="settings-row c-white-bg c-border"><div class="settings-row-left"><span class="settings-icon">📧</span><span class="settings-label c-primary">Email Notifications</span></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke-muted"><path d="M9 18l6-6-6-6"/></svg></div>
+          <!-- About -->
+          <div class="settings-section-label c-muted">About</div>
+          <div class="settings-row c-white-bg c-border"><div class="settings-row-left"><span class="settings-icon">📋</span><span class="settings-label c-primary">Terms of Service</span></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke-muted"><path d="M9 18l6-6-6-6"/></svg></div>
+          <div class="settings-row c-white-bg c-border"><div class="settings-row-left"><span class="settings-icon">🔐</span><span class="settings-label c-primary">Privacy Policy</span></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" class="svg-stroke-muted"><path d="M9 18l6-6-6-6"/></svg></div>
+          <div class="settings-row c-white-bg c-border"><div class="settings-row-left"><span class="settings-icon">ℹ️</span><span class="settings-label c-primary">App Version 1.0.0</span></div></div>
+          <!-- Logout -->
+          <div style="padding:20px">
+            <button onclick="go('login')" style="width:100%;background:var(--white);border:1.5px solid var(--border);border-radius:12px;padding:14px;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;font-family:inherit;transition:background .3s">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E55555" stroke-width="1.8" stroke-linecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4 M16 17l5-5-5-5 M21 12H9"/></svg>
+              <span style="font-weight:600;font-size:15px;color:#E55555">Log Out</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /phone-body -->
+  </div><!-- /phone -->
+
+  <!-- Flow hint -->
+  <div class="flow-hint" id="flow-hint">
+    <div style="font-weight:700;font-size:13px;margin-bottom:8px" id="hint-title">📱 Clickable Flows</div>
+    <div style="font-size:12px;line-height:1.8" id="hint-body">
+      <b id="h1">Splash</b> → auto-advances to Onboarding<br/>
+      <b id="h2">Onboarding</b> → Login (Get Started / Skip)<br/>
+      <b id="h3">Login</b> → Home · Sign Up → Register<br/>
+      <b id="h4">Home</b> → Detail, Search, Upload, Profile, Notifications, Groups, Forum, Settings<br/>
+      <b id="h5">Resource Detail</b> → PDF Viewer<br/>
+      <b id="h6">Profile</b> → Saved, Settings<br/>
+      <b id="h7">Settings</b> → toggle Dark Mode (affects all screens)
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<script>
+// ── THEME ─────────────────────────────────────────────────────────────────────
+const LIGHT = {
+  '--bg':'#F5F5F5','--white':'#FFFFFF','--card':'#FFFFFF','--border':'#E0E0E0',
+  '--primary':'#3A3A3A','--accent':'#555555','--muted':'#999999','--chip':'#E8E8E8',
+  '--chip-active':'#3A3A3A','--chip-active-text':'#FFFFFF','--input':'#F0F0F0',
+  '--placeholder':'#BBBBBB','--divider':'#EEEEEE','--highlight':'#DCDCDC',
+  '--navbg':'#FFFFFF','--status':'#3A3A3A',
+  '--btn-text':'#FFFFFF','--notif-unread':'#FAFAFA',
+  '--outer-bg':'#E2E2E2','--outer-text':'#222222','--outer-muted':'#888888','--panel':'#FFFFFF','--panel-border':'#E0E0E0',
+};
+const DARK = {
+  '--bg':'#121212','--white':'#1E1E1E','--card':'#252525','--border':'#333333',
+  '--primary':'#E8E8E8','--accent':'#BBBBBB','--muted':'#777777','--chip':'#2A2A2A',
+  '--chip-active':'#E8E8E8','--chip-active-text':'#111111','--input':'#2A2A2A',
+  '--placeholder':'#555555','--divider':'#2A2A2A','--highlight':'#333333',
+  '--navbg':'#1A1A1A','--status':'#E8E8E8',
+  '--btn-text':'#111111','--notif-unread':'#1A1A1A',
+  '--outer-bg':'#111111','--outer-text':'#E0E0E0','--outer-muted':'#666666','--panel':'#1E1E1E','--panel-border':'#333333',
+};
+
+let isDark = false;
+let notifOn = true;
+
+function applyTheme(dark) {
+  const t = dark ? DARK : LIGHT;
+  const root = document.documentElement;
+  for(const [k,v] of Object.entries(t)) root.style.setProperty(k,v);
+
+  // outer shell
+  document.body.style.background = t['--outer-bg'];
+  const app = document.getElementById('app');
+  app.style.background = t['--outer-bg'];
+
+  // outer text
+  document.getElementById('outer-title').style.color = t['--outer-text'];
+  document.getElementById('outer-sub').style.color = t['--outer-muted'];
+
+  // dark mode pill
+  const pill = document.getElementById('dm-pill');
+  pill.style.background = t['--panel'];
+  pill.style.borderColor = t['--panel-border'];
+
+  const track = document.getElementById('dm-track');
+  track.style.background = dark ? '#E0E0E0' : '#3A3A3A';
+  const thumb = document.getElementById('dm-thumb');
+  thumb.style.left = dark ? '26px' : '3px';
+  thumb.style.background = dark ? '#111' : '#FFF';
+
+  document.getElementById('dm-label').style.color = t['--outer-muted'];
+  document.getElementById('dm-label').textContent = (dark ? 'Dark' : 'Light') + ' Mode';
+
+  // phone
+  const phone = document.getElementById('phone');
+  phone.style.borderColor = dark ? '#444' : '#CCCCCC';
+
+  // status bar
+  const sb = document.getElementById('status-bar');
+  sb.style.background = (currentScreen==='splash'||currentScreen==='pdfViewer') ? '' : t['--bg'];
+  document.getElementById('status-time').style.color = t['--status'];
+  document.getElementById('bat').style.borderColor = t['--status'];
+  document.getElementById('bat-fill').style.background = t['--status'];
+  for(const id of ['s1','s2','s3','s4']) document.getElementById(id).style.background = t['--status'];
+  document.getElementById('wifi-icon').style.stroke = t['--status'];
+
+  // screen nav pills
+  renderScreenNav();
+
+  // settings dark toggle
+  const sdmt = document.getElementById('settings-dm-track');
+  if(sdmt){
+    sdmt.style.background = dark ? t['--primary'] : t['--highlight'];
+    document.getElementById('settings-dm-thumb').style.left = dark ? '22px' : '2px';
+    document.getElementById('dm-settings-icon').textContent = dark ? '☀️' : '🌙';
+  }
+
+  // flow hint
+  const fh = document.getElementById('flow-hint');
+  fh.style.background = t['--panel'];
+  fh.style.borderColor = t['--panel-border'];
+  document.getElementById('hint-title').style.color = t['--outer-text'];
+  document.getElementById('hint-body').style.color = t['--outer-muted'];
+  for(let i=1;i<=7;i++) document.getElementById('h'+i).style.color = t['--outer-text'];
+
+  // splash bg
+  if(dark){
+    document.getElementById('screen-splash').style.background='#0A0A0A';
+  } else {
+    document.getElementById('screen-splash').style.background='#3A3A3A';
+  }
+
+  // re-render dynamic content
+  renderAll();
+}
+
+function toggleDark() {
+  isDark = !isDark;
+  applyTheme(isDark);
+}
+function toggleNotif() {
+  notifOn = !notifOn;
+  const track = document.getElementById('notif-track');
+  const thumb = document.getElementById('notif-thumb');
+  track.style.background = notifOn ? 'var(--primary)' : 'var(--highlight)';
+  thumb.style.left = notifOn ? '22px' : '2px';
+}
+
+// ── CSS HELPER CLASSES (applied via CSS variables) ────────────────────────────
+// All c-* classes use CSS variables set by applyTheme
+const styleEl = document.createElement('style');
+styleEl.textContent = `
+  .c-bg{background:var(--bg)}
+  .c-white-bg{background:var(--white)}
+  .c-card-bg{background:var(--card)}
+  .c-chip-bg{background:var(--chip)}
+  .c-highlight-bg{background:var(--highlight)}
+  .c-input-bg{background:var(--input)}
+  .c-navbg{background:var(--navbg)}
+  .c-btn-bg{background:var(--primary)}
+  .c-btn-text{color:var(--btn-text)}
+  .c-primary{color:var(--primary)}
+  .c-accent{color:var(--accent)}
+  .c-muted{color:var(--muted)}
+  .c-placeholder{color:var(--placeholder)}
+  .c-border{border-color:var(--border)}
+  .c-border-bg{background:var(--border)}
+  .c-border-top{border-color:var(--border)}
+  .svg-stroke{stroke:var(--primary)}
+  .svg-stroke-muted{stroke:var(--muted)}
+  .c-btn-bg-outline{border-color:var(--primary);color:var(--primary)}
+  .c-accent-bg{background:var(--accent)}
+`;
+document.head.appendChild(styleEl);
+
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const resources = [
+  {title:'Data Structures - Complete Notes',subject:'CS301',rating:'4.8',downloads:'1.2k',uploader:'Shazidul'},
+  {title:'Calculus Past Exam 2023',subject:'MATH201',rating:'4.5',downloads:'890',uploader:'Ritu'},
+  {title:'Organic Chemistry Lab Manual',subject:'CHEM110',rating:'4.7',downloads:'634',uploader:'Sam'},
+  {title:'Linear Algebra - Chapter 5',subject:'MATH301',rating:'4.3',downloads:'445',uploader:'Jordan'},
+  {title:'Operating Systems Notes',subject:'CS402',rating:'4.9',downloads:'2.1k',uploader:'Taylor'},
+];
+const categories = ['All','CS','Math','Physics','Chem','Bio','Economics'];
+let activeCat = 'All';
+const groups = [
+  {name:'CS Algorithm Study Group',members:28,subject:'CS301'},
+  {name:'Calculus Problem Solvers',members:15,subject:'MATH201'},
+  {name:'Organic Chem Lab Prep',members:11,subject:'CHEM110'},
+  {name:'Operating Systems Deep Dive',members:22,subject:'CS402'},
+];
+const posts = [
+  {title:'Best resources for DSA interview prep?',author:'Ritu K.',replies:14,upvotes:38},
+  {title:'How to approach Calculus integration problems?',author:'Ben C.',replies:7,upvotes:22},
+  {title:'Looking for OS notes from Prof. Williams',author:'Sam L.',replies:3,upvotes:15},
+  {title:'Can someone explain Big-O notation simply?',author:'Jordan T.',replies:21,upvotes:55},
+];
+const notifs = [
+  {icon:'💬',msg:'Ben commented on your Data Structures upload',time:'2m ago',unread:true},
+  {icon:'📂',msg:'New notes uploaded for Data Structures',time:'1h ago',unread:true},
+  {icon:'⭐',msg:'Your Calculus notes got a 5-star rating',time:'3h ago',unread:false},
+  {icon:'👥',msg:'Kayla invited you to join CS Study Group',time:'1d ago',unread:false},
+  {icon:'↓',msg:'Your Organic Chemistry notes hit 500 downloads!',time:'2d ago',unread:false},
+];
+const screenList = ['splash','onboarding','login','register','home','search','upload','detail','pdfViewer','profile','bookmarks','notifications','studyGroups','forum','settings'];
+const screenLabels = {splash:'Splash',onboarding:'Onboarding',login:'Login',register:'Register',home:'Home Feed',search:'Search',upload:'Upload',detail:'Resource Detail',pdfViewer:'PDF Viewer',profile:'Profile',bookmarks:'Bookmarks',notifications:'Notifications',studyGroups:'Study Groups',forum:'Forum',settings:'Settings'};
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
+let currentScreen = 'splash';
+let obStep = 0;
+
+function go(id) {
+  document.getElementById('screen-'+currentScreen).classList.remove('active');
+  currentScreen = id;
+  document.getElementById('screen-'+id).classList.add('active');
+  renderScreenNav();
+  renderAll();
+  // status bar bg
+  const sb = document.getElementById('status-bar');
+  if(id==='splash') sb.style.background = isDark?'#0A0A0A':'#3A3A3A';
+  else if(id==='pdfViewer') sb.style.background = '#1E1E1E';
+  else sb.style.background = 'var(--bg)';
+}
+
+// splash auto-advance
+setTimeout(()=>{ if(currentScreen==='splash') go('onboarding'); }, 1800);
+
+// ── RENDER HELPERS ────────────────────────────────────────────────────────────
+function resourceCardHTML(r, dest) {
+  return `<div class="card c-card-bg" onclick="go('${dest}')" style="box-shadow:0 1px 4px rgba(0,0,0,.1);cursor:pointer">
+    <div class="fpill c-highlight-bg">
+      <div class="fpill-inner" style="background:var(--accent)">
+        <div class="fpill-corner" style="background:var(--bg)"></div>
+        <span class="fpill-label" style="color:${isDark?'#111':'#fff'}">PDF</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="card-title c-primary">${r.title}</div>
+      <div class="card-sub c-muted">${r.subject}</div>
+      <div class="card-stats">
+        <span class="c-accent" style="display:flex;align-items:center;gap:2px">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="${isDark?'#888':'#aaa'}" stroke="${isDark?'#888':'#aaa'}" stroke-width="1.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          ${r.rating}
+        </span>
+        <span class="c-muted">↓ ${r.downloads}</span>
+      </div>
+    </div>
+    <div class="avatar" style="width:30px;height:30px;font-size:12px;background:${isDark?'#555':'#BBBBBB'}">${r.uploader[0]}</div>
+  </div>`;
+}
+
+function bottomNavHTML(activeId) {
+  const tabs = [
+    {id:'home',label:'Home',path:'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z M9 22V12h6v10'},
+    {id:'search',label:'Search',path:'M11 19A8 8 0 1019 11 8 8 0 0011 19zM21 21l-4.35-4.35'},
+    {id:'upload',label:'Upload',path:'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4 M17 8l-5-5-5 5 M12 3v12'},
+    {id:'profile',label:'Profile',path:'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 11a4 4 0 100-8 4 4 0 000 8z'},
+  ];
+  return tabs.map(t => {
+    const a = t.id===activeId;
+    return `<button class="bnav-btn" onclick="go('${t.id}')" style="color:${a?'var(--primary)':'var(--muted)'}">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${a?'var(--primary)':'var(--muted)'}" stroke-width="1.8" stroke-linecap="round"><path d="${t.path}"/></svg>
+      <span class="bnav-label" style="font-weight:${a?700:400};color:${a?'var(--primary)':'var(--muted)'}">${t.label}</span>
+      ${a?`<div class="bnav-dot" style="background:var(--primary)"></div>`:''}
+    </button>`;
+  }).join('');
+}
+
+function renderAll() {
+  // Category chips
+  const cc = document.getElementById('cat-chips');
+  if(cc) cc.innerHTML = categories.map(c=>`<button class="chip" onclick="setCat('${c}')" style="background:${c===activeCat?'var(--chip-active)':'var(--chip)'};color:${c===activeCat?'var(--chip-active-text)':'var(--accent)'}">${c}</button>`).join('');
+
+  // Home trending/latest
+  const ht = document.getElementById('home-trending');
+  if(ht) ht.innerHTML = resources.slice(0,2).map(r=>resourceCardHTML(r,'detail')).join('');
+  const hl = document.getElementById('home-latest');
+  if(hl) hl.innerHTML = resources.slice(2).map(r=>resourceCardHTML(r,'detail')).join('');
+
+  // Search results
+  const sr = document.getElementById('search-results');
+  if(sr) sr.innerHTML = resources.map(r=>resourceCardHTML(r,'detail')).join('');
+
+  // Bottom navs
+  ['home','search','upload','profile','bookmarks'].forEach(id=>{
+    const el = document.getElementById('bnav-'+id);
+    if(el){
+      const active = id==='bookmarks'?'profile':id;
+      el.innerHTML = bottomNavHTML(active);
+    }
+  });
+
+  // Star row
+  const starRow = document.getElementById('star-row');
+  if(starRow) starRow.innerHTML = [1,2,3,4,5].map(i=>`<button class="star-btn" style="background:${i<=4?'var(--primary)':'var(--chip)'};color:${i<=4?'var(--btn-text)':'var(--muted)'};border:none;cursor:default">★</button>`).join('');
+
+  // Comments
+  const cl = document.getElementById('comments-list');
+  if(cl) cl.innerHTML = [
+    {name:'Ben Carter',text:'Great notes, very helpful!'},
+    {name:'Kayla S.',text:'Can you upload chapter 6?'},
+    {name:'Mei Lin',text:'Thanks a lot for sharing this 🙌'},
+  ].map((c,i)=>`<div style="display:flex;gap:10px;margin-bottom:14px">
+    <div class="avatar" style="width:30px;height:30px;font-size:12px;background:${isDark?'#444':'#BBBBBB'}">${c.name[0]}</div>
+    <div class="comment-bubble c-chip-bg">
+      <div class="comment-author c-primary">${c.name}</div>
+      <div class="comment-text c-accent">${c.text}</div>
+    </div>
+  </div>`).join('');
+
+  // Profile resources
+  const pr = document.getElementById('profile-resources');
+  if(pr) pr.innerHTML = resources.slice(0,3).map(r=>resourceCardHTML(r,'detail')).join('');
+
+  // Bookmarks
+  const bl = document.getElementById('bookmarks-list');
+  if(bl) bl.innerHTML = resources.map(r=>`<div class="card c-card-bg" style="box-shadow:0 1px 4px rgba(0,0,0,.1)">
+    <div class="fpill c-highlight-bg"><div class="fpill-inner" style="background:var(--accent)"><div class="fpill-corner" style="background:var(--bg)"></div><span class="fpill-label" style="color:${isDark?'#111':'#fff'}">PDF</span></div></div>
+    <div class="card-body">
+      <div class="card-title c-primary">${r.title}</div>
+      <div class="card-sub c-muted" style="margin-top:2px">${r.subject}</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-sm c-chip-bg c-primary" style="border:none">↓</button>
+      <button class="btn-sm c-chip-bg c-muted" style="border:none">×</button>
+    </div>
+  </div>`).join('');
+
+  // Notifications
+  const nl = document.getElementById('notif-list');
+  if(nl) nl.innerHTML = notifs.map(n=>`<div class="notif-row c-border" style="background:${n.unread?'var(--notif-unread)':'var(--white)'}">
+    <div class="notif-icon c-chip-bg">${n.icon}</div>
+    <div style="flex:1">
+      <div style="font-size:13px;line-height:1.4;font-weight:${n.unread?600:400}" class="c-primary">${n.msg}</div>
+      <div style="font-size:11px;margin-top:3px" class="c-muted">${n.time}</div>
+    </div>
+    ${n.unread?`<div class="notif-dot" style="background:var(--primary)"></div>`:''}
+  </div>`).join('');
+
+  // Groups
+  const gl = document.getElementById('groups-list');
+  if(gl) gl.innerHTML = groups.map(g=>`<div class="card c-white-bg" style="box-shadow:0 1px 4px rgba(0,0,0,.1)">
+    <div style="width:44px;height:44px;border-radius:12px;font-size:22px;display:flex;align-items:center;justify-content:center;flex-shrink:0" class="c-highlight-bg">👥</div>
+    <div style="flex:1">
+      <div style="font-weight:700;font-size:14px" class="c-primary">${g.name}</div>
+      <div style="font-size:12px;margin-top:2px" class="c-muted">${g.members} members · ${g.subject}</div>
+    </div>
+    <button class="btn-sm c-btn-bg c-btn-text" style="border:none">Join</button>
+  </div>`).join('');
+
+  // Forum
+  const fl = document.getElementById('forum-list');
+  if(fl) fl.innerHTML = posts.map(p=>`<div class="card c-white-bg" style="box-shadow:0 1px 4px rgba(0,0,0,.1);flex-direction:column;align-items:stretch;gap:8px;cursor:pointer">
+    <div style="font-weight:600;font-size:14px;line-height:1.4" class="c-primary">${p.title}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px" class="c-muted">by ${p.author}</span>
+      <div style="display:flex;gap:12px">
+        <span style="font-size:12px" class="c-accent">💬 ${p.replies}</span>
+        <span style="font-size:12px" class="c-accent">▲ ${p.upvotes}</span>
+      </div>
+    </div>
+  </div>`).join('');
+
+  // Settings toggles sync
+  const sdmt = document.getElementById('settings-dm-thumb');
+  if(sdmt) {
+    sdmt.style.left = isDark ? '22px' : '2px';
+    document.getElementById('settings-dm-track').style.background = isDark ? 'var(--primary)' : 'var(--highlight)';
+    document.getElementById('dm-settings-icon').textContent = isDark ? '☀️' : '🌙';
+  }
+}
+
+// ── SCREEN NAV ────────────────────────────────────────────────────────────────
+function renderScreenNav() {
+  const nav = document.getElementById('screen-nav');
+  nav.innerHTML = screenList.map(s=>{
+    const a = s===currentScreen;
+    return `<button class="snav-btn" onclick="go('${s}')"
+      style="background:${a?(isDark?'#E0E0E0':'#3A3A3A'):(isDark?'#1E1E1E':'#FFFFFF')};
+             color:${a?(isDark?'#111':'#FFF'):(isDark?'#666':'#888')};
+             border-color:${a?(isDark?'#E0E0E0':'#3A3A3A'):(isDark?'#333':'#D0D0D0')};
+             font-weight:${a?700:400}">${screenLabels[s]}</button>`;
+  }).join('');
+}
+
+// ── ONBOARDING ────────────────────────────────────────────────────────────────
+const obSlides = [
+  {emoji:'📤',title:'Share Study Resources',desc:'Upload lecture notes, past exams, assignments and help your fellow students excel in their studies.'},
+  {emoji:'🔍',title:'Discover Quality Notes',desc:'Browse thousands of curated academic resources filtered by subject, course code, and rating.'},
+  {emoji:'👥',title:'Collaborate with Students',desc:'Join study groups, discuss topics in forums, and build your academic network on campus.'},
+];
+function obNext() {
+  if(obStep < 2) {
+    obStep++;
+    updateOb();
+  } else {
+    go('login');
+  }
+}
+function updateOb() {
+  const s = obSlides[obStep];
+  document.getElementById('ob-emoji').textContent = s.emoji;
+  document.getElementById('ob-title').textContent = s.title;
+  document.getElementById('ob-desc').textContent = s.desc;
+  document.getElementById('ob-btn').textContent = obStep < 2 ? 'Next →' : 'Get Started';
+  for(let i=0;i<3;i++){
+    const d = document.getElementById('od'+i);
+    d.style.width = i===obStep ? '24px' : '8px';
+    d.style.background = i===obStep ? 'var(--primary)' : 'var(--border)';
+  }
+  document.getElementById('ob-illustration').style.background = 'var(--chip)';
+}
+
+// ── PROFILE TABS ──────────────────────────────────────────────────────────────
+function switchProfileTab(tab) {
+  if(tab==='saved') { go('bookmarks'); return; }
+  document.getElementById('ptab-uploaded').style.fontWeight = '700';
+  document.getElementById('ptab-uploaded').style.borderBottomColor = 'var(--primary)';
+  document.getElementById('ptab-uploaded').style.color = 'var(--primary)';
+  document.getElementById('ptab-saved').style.fontWeight = '400';
+  document.getElementById('ptab-saved').style.borderBottomColor = 'transparent';
+  document.getElementById('ptab-saved').style.color = 'var(--muted)';
+}
+
+// ── CATEGORY ──────────────────────────────────────────────────────────────────
+function setCat(c) { activeCat = c; renderAll(); }
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+applyTheme(false);
+renderScreenNav();
+renderAll();
+</script>
+</body>
+</html>

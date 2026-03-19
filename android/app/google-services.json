@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1014569507613",
+    "project_id": "linkup-academic-app",
+    "storage_bucket": "linkup-academic-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1014569507613:android:564633c9951af3233c1ff4",
+        "android_client_info": {
+          "package_name": "com.example.linkup"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAyrGqOVpMS6Zgz95strm6p7pYhkwsQYjc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
