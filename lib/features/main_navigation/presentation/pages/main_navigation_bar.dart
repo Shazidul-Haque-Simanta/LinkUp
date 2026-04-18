@@ -3,18 +3,27 @@ import 'package:project_v2/features/home/presentation/pages/home_screen.dart';
 import 'package:project_v2/features/search/presentation/pages/search_screen.dart';
 import 'package:project_v2/features/upload/presentation/pages/upload_screen.dart';
 import 'package:project_v2/features/profile/presentation/pages/profile_screen.dart';
+import 'package:project_v2/features/ai_tutor/presentation/pages/ai_tutor_screen.dart';
 import 'package:project_v2/services/firebase_service.dart';
 
 class MainNavigationBar extends StatefulWidget {
-  const MainNavigationBar({super.key});
+  final int initialIndex;
+  
+  const MainNavigationBar({super.key, this.initialIndex = 0});
 
   @override
   State<MainNavigationBar> createState() => _MainNavigationBarState();
 }
 
 class _MainNavigationBarState extends State<MainNavigationBar> {
-  int _selectedIndex = 0;
+  late int _selectedIndex;
   final FirebaseService _firebaseService = FirebaseService();
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = widget.initialIndex;
+  }
 
   final List<Widget> _pages = [
     const HomeScreen(),
@@ -27,6 +36,26 @@ class _MainNavigationBarState extends State<MainNavigationBar> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _pages[_selectedIndex],
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (context) => DraggableScrollableSheet(
+              initialChildSize: 0.9,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              builder: (context, scrollController) => const ClipRRect(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                child: AiTutorScreen(),
+              ),
+            ),
+          );
+        },
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        child: const Icon(Icons.auto_awesome, color: Colors.white),
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,

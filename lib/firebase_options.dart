@@ -19,31 +19,31 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: '############ USE your api key #################',
-    appId: '1:1014569507613:web:b35b4882455f0dd23c1ff4',
-    messagingSenderId: '1014569507613',
-    projectId: 'linkup-academic-app',
-    authDomain: 'linkup-academic-app.firebaseapp.com',
-    databaseURL: 'https://linkup-academic-app-default-rtdb.asia-southeast1.firebasedatabase.app',
-    storageBucket: 'linkup-academic-app.firebasestorage.app',
+    apiKey: 'YOUR_WEB_API_KEY',
+    appId: 'YOUR_WEB_APP_ID',
+    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
+    projectId: 'YOUR_PROJECT_ID',
+    authDomain: 'YOUR_AUTH_DOMAIN',
+    databaseURL: 'YOUR_DATABASE_URL',
+    storageBucket: 'YOUR_STORAGE_BUCKET',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: '############ USE your api key #################', // Sharing same API Key for simplicity if not available in JSON
-    appId: '1:1014569507613:android:9d4f6a7d9b8c7e6f5a4b3c', // Placeholder, usually from google-services.json
-    messagingSenderId: '1014569507613',
-    projectId: 'linkup-academic-app',
-    databaseURL: 'https://linkup-academic-app-default-rtdb.asia-southeast1.firebasedatabase.app',
-    storageBucket: 'linkup-academic-app.firebasestorage.app',
+    apiKey: 'YOUR_ANDROID_API_KEY',
+    appId: 'YOUR_ANDROID_APP_ID',
+    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
+    projectId: 'YOUR_PROJECT_ID',
+    databaseURL: 'YOUR_DATABASE_URL',
+    storageBucket: 'YOUR_STORAGE_BUCKET',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: '############ USE your api key #################',
-    appId: '1:1014569507613:ios:8c7d6f5e4d3c2b1a0f9e8d', // Placeholder
-    messagingSenderId: '1014569507613',
-    projectId: 'linkup-academic-app',
-    databaseURL: 'https://linkup-academic-app-default-rtdb.asia-southeast1.firebasedatabase.app',
-    storageBucket: 'linkup-academic-app.firebasestorage.app',
-    iosBundleId: 'com.example.projectV2',
+    apiKey: 'YOUR_IOS_API_KEY',
+    appId: 'YOUR_IOS_APP_ID',
+    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
+    projectId: 'YOUR_PROJECT_ID',
+    databaseURL: 'YOUR_DATABASE_URL',
+    storageBucket: 'YOUR_STORAGE_BUCKET',
+    iosBundleId: 'YOUR_IOS_BUNDLE_ID',
   );
 }

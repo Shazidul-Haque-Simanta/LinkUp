@@ -7,6 +7,8 @@ import 'package:project_v2/models/resource_model.dart';
 import 'package:project_v2/models/user_model.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:project_v2/models/comment_model.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 class ResourceDetailScreen extends StatefulWidget {
   final String? resourceId;
@@ -18,6 +20,8 @@ class ResourceDetailScreen extends StatefulWidget {
 
 class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
   final FirebaseService _firebaseService = FirebaseService();
+  bool _showInlinePreview = false;
+  final PdfViewerController _pdfController = PdfViewerController();
   final TextEditingController _commentController = TextEditingController();
   bool _isSendingComment = false;
   String? _replyToCommentId;
@@ -122,47 +126,95 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // PDF Preview Area
+                // PDF Preview Area
                 GestureDetector(
                   onTap: () {
-                    if (resource.fileurls.isNotEmpty) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => PdfPreviewScreen(
-                            pdfUrl: resource.fileurls,
-                            resourceId: resource.id,
-                          ),
-                        ),
-                      );
+                    if (!_showInlinePreview && mounted) {
+                      setState(() => _showInlinePreview = true);
                     }
                   },
                   child: Container(
                     width: double.infinity,
-                    height: 220,
+                    height: _showInlinePreview ? 500 : 220,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainer,
+                      color: Theme.of(context).colorScheme.surfaceVariant,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, style: BorderStyle.solid),
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    child: Stack(
                       children: [
-                        Icon(_getTypeIcon(resource.type), size: 48, color: _getTypeColor(resource.type)),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Tap to preview file', 
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
+                        if (!_showInlinePreview)
+                          Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(_getTypeIcon(resource.type), size: 48, color: _getTypeColor(resource.type)),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Tap to preview file', 
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${resource.type} · ${resource.subject}', 
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), 
+                                    fontSize: 12
+                                  )
+                                ),
+                              ],
+                            ),
                           )
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${resource.type} · ${resource.subject}', 
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6), 
-                            fontSize: 12
-                          )
+                        else
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: _buildInlineViewer(resource.fileurls),
+                          ),
+                        
+                        // Action Buttons over preview
+                        Positioned(
+                          top: 12,
+                          right: 12,
+                          child: Row(
+                            children: [
+                              if (_showInlinePreview)
+                                IconButton(
+                                  onPressed: () {
+                                    if (mounted) {
+                                      setState(() => _showInlinePreview = false);
+                                    }
+                                  },
+                                  icon: const Icon(Icons.close_fullscreen_rounded),
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: Colors.black45,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => PdfPreviewScreen(
+                                        pdfUrl: resource.fileurls,
+                                        resourceId: resource.id,
+                                        fileName: resource.title,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.open_in_full_rounded),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Colors.black45,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -199,7 +251,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                             height: 40,
                             width: 40,
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                               shape: BoxShape.circle,
                             ),
                             child: Center(
@@ -218,7 +270,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                             children: [
                               Text(userName, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
                               Text('$university · ${_getTimeAgo(resource.createdAt)}', 
-                                style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6), fontSize: 12)),
+                                style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), fontSize: 12)),
                             ],
                           ),
                         ],
@@ -232,9 +284,9 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                   children: [
                     _statChip(Icons.star, resource.rating.toStringAsFixed(1), Colors.amber),
                     const SizedBox(width: 8),
-                    _statChip(Icons.arrow_downward, '${_formatDownloads(resource.downloads)} downloads', Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+                    _statChip(Icons.arrow_downward, '${_formatDownloads(resource.downloads)} downloads', Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
                     const SizedBox(width: 8),
-                    _statChip(Icons.book_outlined, resource.courseCode, Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+                    _statChip(Icons.book_outlined, resource.courseCode, Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
                   ],
                 ).animate(delay: 300.ms).fade(duration: 400.ms).slideY(begin: 0.05, curve: Curves.easeOutQuad),
                 const SizedBox(height: 16),
@@ -278,7 +330,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                 // Description
                 Text(
                   resource.description,
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8), height: 1.5),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8), height: 1.5),
                 ),
                 const SizedBox(height: 12),
                 // Clickable Link
@@ -312,9 +364,9 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                     children: resource.tags.map((tag) => Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2)),
+                        border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.2)),
                       ),
                       child: Text('#$tag', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 11, fontWeight: FontWeight.w500)),
                     )).toList(),
@@ -351,7 +403,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                         final isBookmarked = snapshot.data?.contains(resource.id) ?? false;
                         return _iconAction(
                           isBookmarked ? Icons.bookmark : Icons.bookmark_border, 
-                          isBookmarked ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4), 
+                          isBookmarked ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface.withOpacity(0.4), 
                           () async {
                             final uid = _firebaseService.currentUser?.uid;
                             if (uid == null) return;
@@ -374,7 +426,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                       }
                     ),
                     const SizedBox(width: 12),
-                    _iconAction(Icons.share_outlined, Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4), () {
+                    _iconAction(Icons.share_outlined, Theme.of(context).colorScheme.onSurface.withOpacity(0.4), () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Sharing functionality coming soon')),
                       );
@@ -393,7 +445,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                       stream: _firebaseService.getComments(resource.id),
                       builder: (context, snap) {
                         final count = snap.data?.length ?? 0;
-                        return Text('$count comment${count == 1 ? '' : 's'}', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5), fontSize: 13));
+                        return Text('$count comment${count == 1 ? '' : 's'}', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5), fontSize: 13));
                       },
                     ),
                   ],
@@ -413,7 +465,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 16.0),
                           child: Text(
                             'Be the first to comment!', 
-                            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5))
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))
                           ),
                         ),
                       );
@@ -449,7 +501,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                               _replyToUserName = null;
                             });
                           },
-                          child: Icon(Icons.cancel, size: 16, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
+                          child: Icon(Icons.cancel, size: 16, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4)),
                         ),
                       ],
                     ),
@@ -462,7 +514,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                         decoration: InputDecoration(
                           hintText: _replyToCommentId != null ? 'Write a reply...' : 'Add a comment...',
                           filled: true,
-                          fillColor: Theme.of(context).colorScheme.surfaceContainer,
+                          fillColor: Theme.of(context).colorScheme.surfaceVariant,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
                             borderSide: BorderSide.none,
@@ -554,7 +606,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                 height: 36,
                 width: 36,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
@@ -569,7 +621,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainer,
+                    color: Theme.of(context).colorScheme.surfaceVariant,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                   ),
@@ -585,7 +637,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                               Text(
                                 _getTimeAgo(comment.createdAt), 
                                 style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5), 
+                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5), 
                                   fontSize: 10
                                 )
                               ),
@@ -609,7 +661,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                         comment.text, 
                         style: TextStyle(
                           fontSize: 13, 
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.9)
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.9)
                         )
                       ),
                     ],
@@ -630,7 +682,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
         height: 56,
         width: 56,
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainer,
+          color: Theme.of(context).colorScheme.surfaceVariant,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(icon, color: color),
@@ -642,7 +694,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
+        color: Theme.of(context).colorScheme.surfaceVariant,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -655,7 +707,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
             style: TextStyle(
               fontSize: 12, 
               fontWeight: FontWeight.w500,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
             )
           ),
         ],
@@ -676,14 +728,14 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? activeColor.withValues(alpha: 0.1) : Theme.of(context).colorScheme.surfaceContainer,
+          color: isActive ? activeColor.withOpacity(0.1) : Theme.of(context).colorScheme.surfaceVariant,
           borderRadius: BorderRadius.circular(20),
-          border: isActive ? Border.all(color: activeColor.withValues(alpha: 0.3)) : Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+          border: isActive ? Border.all(color: activeColor.withOpacity(0.3)) : Border.all(color: Theme.of(context).colorScheme.outlineVariant),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(isActive ? activeIcon : idleIcon, size: 18, color: isActive ? activeColor : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
+            Icon(isActive ? activeIcon : idleIcon, size: 18, color: isActive ? activeColor : Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
             if (count > 0) ...[
               const SizedBox(width: 6),
               Text(
@@ -691,7 +743,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                 style: TextStyle(
                   fontSize: 13, 
                   fontWeight: FontWeight.bold, 
-                  color: isActive ? activeColor : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                  color: isActive ? activeColor : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                 )
               ),
             ],
@@ -732,5 +784,84 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
       case 'book': return Colors.teal;
       default: return Colors.blueGrey;
     }
+  }
+
+  Widget _buildInlineViewer(String url) {
+    String finalUrl = url;
+    if (finalUrl.contains('https://shazid.info')) {
+      finalUrl = finalUrl.replaceAll('https://', 'http://');
+    }
+    
+    // Auto-Proxy for Web to ensure 'Inside App' status
+    if (kIsWeb) {
+      finalUrl = 'https://api.allorigins.win/raw?url=${Uri.encodeComponent(finalUrl)}';
+    }
+
+    final lowerUrl = url.toLowerCase();
+    final isPdf = lowerUrl.endsWith('.pdf') || lowerUrl.contains('.pdf?') || url.contains('/uploads/');
+    final isImage = lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg') || lowerUrl.endsWith('.png') || lowerUrl.endsWith('.webp') || lowerUrl.endsWith('.gif');
+
+    if (isPdf) {
+      return SfPdfViewer.network(
+        finalUrl,
+        controller: _pdfController,
+        canShowScrollHead: false,
+      );
+    } else if (isImage) {
+      return InteractiveViewer(
+        child: Image.network(
+          finalUrl,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => _buildLinkPlaceholder(url),
+        ),
+      );
+    } else {
+      return _buildLinkPlaceholder(url);
+    }
+  }
+
+  Widget _buildLinkPlaceholder(String url) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.link_rounded, color: Theme.of(context).colorScheme.primary, size: 40),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'External Resource Link',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              'This resource is hosted externally. Tap the button below to view it.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: () => _launchURL(url),
+            icon: const Icon(Icons.open_in_new_rounded, size: 18),
+            label: const Text('Open External Link'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

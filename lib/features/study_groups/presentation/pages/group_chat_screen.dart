@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:project_v2/services/firebase_service.dart';
 import 'package:project_v2/models/group_models.dart';
 import 'package:project_v2/models/user_model.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:project_v2/features/resource/presentation/pages/pdf_preview_screen.dart';
 // Note: In a production app, real AES/RSA encryption should be used. 
 // For this level, we rely on Firebase Rules + private in-app logic to keep messages unreadable to non-members.
 
@@ -51,6 +55,49 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       });
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
+  }
+
+  void _pickAndSendFile() async {
+    final user = _firebaseService.currentUser;
+    if (user == null) return;
+
+    final isMember = widget.group.members.containsKey(user.uid);
+    if (!isMember) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Access Denied: You must join the group to share files.')));
+      return;
+    }
+
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'png', 'docx', 'ppt'],
+        withData: kIsWeb,
+      );
+
+      if (result != null) {
+        setState(() => _isSending = true);
+        final pickedFile = result.files.first;
+        String fileUrl = '';
+
+        if (kIsWeb) {
+          fileUrl = await _firebaseService.uploadResourceFileWeb(pickedFile.bytes!, pickedFile.name);
+        } else {
+          fileUrl = await _firebaseService.uploadResourceFile(File(pickedFile.path!), pickedFile.name);
+        }
+
+        await _firebaseService.sendGroupMessage(
+          widget.group.id, 
+          'Shared a file: ${pickedFile.name}', 
+          user.uid,
+          fileUrl: fileUrl,
+          fileName: pickedFile.name,
+        );
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
     } finally {
       if (mounted) setState(() => _isSending = false);
     }
@@ -196,6 +243,57 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 fontSize: 14
               ),
             ),
+            if (msg.fileUrl != null) ...[
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PdfPreviewScreen(
+                        pdfUrl: msg.fileUrl,
+                        fileName: msg.fileName,
+                      ),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        msg.fileName?.toLowerCase().endsWith('.pdf') == true ? Icons.picture_as_pdf : Icons.insert_drive_file,
+                        color: msg.fileName?.toLowerCase().endsWith('.pdf') == true ? Colors.red : Colors.blue,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              msg.fileName ?? 'Shared File',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const Text(
+                              'Tap to preview',
+                              style: TextStyle(fontSize: 10, color: Colors.blueAccent),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -211,6 +309,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       ),
       child: Row(
         children: [
+          IconButton(
+            onPressed: _isSending ? null : _pickAndSendFile,
+            icon: Icon(Icons.add_circle_outline, color: Theme.of(context).colorScheme.primary),
+          ),
+          const SizedBox(width: 8),
           Expanded(
             child: TextField(
               controller: _msgController,

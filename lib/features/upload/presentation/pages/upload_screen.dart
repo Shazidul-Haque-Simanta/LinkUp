@@ -4,6 +4,8 @@ import 'package:project_v2/services/firebase_service.dart';
 import 'package:project_v2/models/resource_model.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:project_v2/features/main_navigation/presentation/pages/main_navigation_bar.dart';
 
 class UploadScreen extends StatefulWidget {
   const UploadScreen({super.key});
@@ -18,30 +20,33 @@ class _UploadScreenState extends State<UploadScreen> {
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _tagController = TextEditingController();
   final TextEditingController _pdfUrlController = TextEditingController();
+  final TextEditingController _subjectController = TextEditingController();
   final FirebaseService _firebaseService = FirebaseService();
   
-  String? _selectedSubject;
   String _selectedType = 'Notes'; // Default to Notes
   final List<String> _tags = [];
   PlatformFile? _pickedFile;
   bool _isLoading = false;
+  bool _showPreview = false;
+  final PdfViewerController _pdfPreviewController = PdfViewerController();
 
-  static const List<String> _subjects = [
-    'Computer Science',
-    'Electrical Engineering',
-    'Mathematics',
-    'Physics',
-    'Business',
-    'Other'
-  ];
+
 
   static const List<String> _types = [
     'Notes',
     'Slides',
     'Question',
     'Book',
+    'Assignments',
     'Other'
   ];
+
+  static const List<String> _allowedExtensions = ['pdf', 'docx', 'pptx'];
+
+  bool _isValidFile(String fileName) {
+    final name = fileName.toLowerCase();
+    return _allowedExtensions.any((ext) => name.endsWith('.$ext'));
+  }
 
   @override
   void initState() {
@@ -55,6 +60,7 @@ class _UploadScreenState extends State<UploadScreen> {
     _descriptionController.dispose();
     _tagController.dispose();
     _pdfUrlController.dispose();
+    _subjectController.dispose();
     super.dispose();
   }
 
@@ -62,13 +68,22 @@ class _UploadScreenState extends State<UploadScreen> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'zip'],
+        allowedExtensions: _allowedExtensions,
         withData: kIsWeb, // Mandatory for web
       );
 
       if (result != null) {
+        final file = result.files.first;
+        if (!_isValidFile(file.name)) {
+           if (mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(
+               const SnackBar(content: Text('Unsupported file type! Only PDF, DOCx, and PPTx allowed.'), backgroundColor: Colors.red),
+             );
+           }
+           return;
+        }
         setState(() {
-          _pickedFile = result.files.first;
+          _pickedFile = file;
         });
       }
     } catch (e) {
@@ -106,9 +121,36 @@ class _UploadScreenState extends State<UploadScreen> {
       return;
     }
 
-    if (_titleController.text.trim().isEmpty || _selectedSubject == null) {
+    if (_titleController.text.trim().isEmpty || _subjectController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Title and Subject are required')),
+      );
+      return;
+    }
+
+    // 0. Strict File Type Validation
+    if (_pickedFile != null && !_isValidFile(_pickedFile!.name)) {
+       ScaffoldMessenger.of(context).showSnackBar(
+         const SnackBar(content: Text('Uploaded file type is invalid! Please pick a PDF, DOCx, or PPTx.'), backgroundColor: Colors.red),
+       );
+       return;
+    }
+    
+    if (pdfUrl.isNotEmpty) {
+       // Basic URL validation: ensure it has a scheme
+       if (!pdfUrl.startsWith('http://') && !pdfUrl.startsWith('https://')) {
+         ScaffoldMessenger.of(context).showSnackBar(
+           const SnackBar(content: Text('Please provide a valid URL (starting with http:// or https://)'), backgroundColor: Colors.red),
+         );
+         return;
+       }
+    }
+
+    // 1. Mandatory Course Code for Questions
+    final courseCode = _courseCodeController.text.trim();
+    if (_selectedType == 'Question' && courseCode.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Course Code is mandatory for Questions!'), backgroundColor: Colors.orange),
       );
       return;
     }
@@ -118,6 +160,23 @@ class _UploadScreenState extends State<UploadScreen> {
     try {
       final user = _firebaseService.currentUser;
       if (user == null) throw Exception('You must be logged in to upload resources');
+
+      // 2. Duplicate Check for Questions
+      if (_selectedType == 'Question') {
+        final exists = await _firebaseService.checkQuestionExists(courseCode);
+        if (exists) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Question already exists for this Course Code!'),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+          }
+          setState(() => _isLoading = false);
+          return;
+        }
+      }
 
       String finalFileUrl = '';
       
@@ -140,7 +199,7 @@ class _UploadScreenState extends State<UploadScreen> {
         id: '', // Generated by Firebase
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
-        subject: _selectedSubject!,
+        subject: _subjectController.text.trim(),
         courseCode: _courseCodeController.text.trim(),
         type: _selectedType,
         tags: _tags,
@@ -149,13 +208,39 @@ class _UploadScreenState extends State<UploadScreen> {
         createdAt: DateTime.now(),
       );
 
-      await _firebaseService.createResource(resource);
+      final String newResourceId = await _firebaseService.createResource(resource);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Successfully published!'),
+        final scaffoldMessenger = ScaffoldMessenger.of(context);
+        bool wasUndone = false;
+
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: const Text('Successfully published!'),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'UNDO',
+              textColor: Colors.white,
+              onPressed: () async {
+                wasUndone = true;
+                scaffoldMessenger.removeCurrentSnackBar(); // Instant-hide the green bar to show the orange one next
+                try {
+                  await _firebaseService.deleteResource(newResourceId);
+                  scaffoldMessenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Upload completely erased.'), 
+                      backgroundColor: Colors.orange,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                } catch (undoError) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text('Failed to undo: $undoError'), backgroundColor: Colors.red),
+                  );
+                }
+              },
+            ),
           ),
         );
         // Clear form
@@ -165,9 +250,21 @@ class _UploadScreenState extends State<UploadScreen> {
           _descriptionController.clear();
           _courseCodeController.clear();
           _pdfUrlController.clear();
+          _subjectController.clear();
           _tags.clear();
-          _selectedSubject = null;
           _selectedType = 'Notes';
+        });
+
+        // Redirect after precisely 3 seconds if not undone
+        Future.delayed(const Duration(milliseconds: 3100), () {
+          if (mounted && !wasUndone) {
+            scaffoldMessenger.hideCurrentSnackBar(); // Smoothly hide it before pushing out
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const MainNavigationBar(initialIndex: 3)),
+              (route) => false,
+            );
+          }
         });
       }
     } catch (e) {
@@ -176,6 +273,7 @@ class _UploadScreenState extends State<UploadScreen> {
           SnackBar(
             content: Text('Upload failed: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -206,12 +304,12 @@ class _UploadScreenState extends State<UploadScreen> {
               onTap: _pickFile,
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 40),
+                padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainer,
+                  color: Theme.of(context).colorScheme.surfaceVariant,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: _pickedFile != null ? Colors.green.withValues(alpha: 0.3) : Theme.of(context).colorScheme.outlineVariant,
+                    color: _pickedFile != null ? Colors.green.withOpacity(0.3) : Theme.of(context).colorScheme.outlineVariant,
                     width: 2,
                     style: BorderStyle.solid,
                   ),
@@ -227,8 +325,8 @@ class _UploadScreenState extends State<UploadScreen> {
                         boxShadow: [
                           BoxShadow(
                             color: Theme.of(context).brightness == Brightness.light 
-                                ? Colors.black.withValues(alpha: 0.05) 
-                                : Colors.white.withValues(alpha: 0.02),
+                                ? Colors.black.withOpacity(0.05) 
+                                : Colors.white.withOpacity(0.02),
                             blurRadius: 10,
                           ),
                         ],
@@ -252,13 +350,70 @@ class _UploadScreenState extends State<UploadScreen> {
                     Text(
                       _pickedFile != null 
                         ? '${(_pickedFile!.size / 1024 / 1024).toStringAsFixed(2)} MB'
-                        : 'PDF, DOC, PPT — Max 50MB',
-                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6), fontSize: 12),
+                        : 'ONLY PDF, DOCx, PPTx allowed (Max 2MB)',
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), fontSize: 12),
                     ),
+                    if (_pickedFile != null) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          TextButton.icon(
+                            onPressed: () => setState(() => _showPreview = !_showPreview),
+                            icon: Icon(_showPreview ? Icons.visibility_off : Icons.visibility, size: 18),
+                            label: Text(_showPreview ? 'Hide Preview' : 'Tap to Preview', style: const TextStyle(fontSize: 12)),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Theme.of(context).colorScheme.primary,
+                              backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton.icon(
+                            onPressed: () => setState(() {
+                              _pickedFile = null;
+                              _showPreview = false;
+                            }),
+                            icon: const Icon(Icons.delete_outline, size: 18),
+                            label: const Text('Remove', style: TextStyle(fontSize: 12)),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              backgroundColor: Colors.red.withOpacity(0.1),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
             ),
+            if (_showPreview && _pickedFile != null && _pickedFile!.bytes != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                height: 350,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: _pickedFile!.extension?.toLowerCase() == 'pdf'
+                      ? SfPdfViewer.memory(
+                          _pickedFile!.bytes!,
+                          controller: _pdfPreviewController,
+                        )
+                      : InteractiveViewer(
+                          child: Image.memory(_pickedFile!.bytes!),
+                        ),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             Row(
               children: [
@@ -271,11 +426,11 @@ class _UploadScreenState extends State<UploadScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            _label('Paste PDF / Resource URL'),
+            _label('Paste Resource / Web Link'),
             TextField(
               controller: _pdfUrlController,
               decoration: const InputDecoration(
-                hintText: 'https://example.com/notes.pdf',
+                hintText: 'https://example.com/item/123',
                 prefixIcon: Icon(Icons.link, size: 20),
               ),
               onChanged: (val) {
@@ -292,30 +447,16 @@ class _UploadScreenState extends State<UploadScreen> {
             ),
             const SizedBox(height: 20),
             _label('Subject *'),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainer,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _selectedSubject,
-                  hint: Text('Select a subject', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
-                  isExpanded: true,
-                  dropdownColor: Theme.of(context).colorScheme.surface,
-                  items: _subjects.map((s) => DropdownMenuItem(value: s, child: Text(s, style: TextStyle(color: Theme.of(context).colorScheme.onSurface)))).toList(),
-                  onChanged: _isLoading ? null : (val) => setState(() => _selectedSubject = val),
-                ),
-              ),
+            TextField(
+              controller: _subjectController,
+              decoration: const InputDecoration(hintText: 'e.g. Computer Science'),
             ),
             const SizedBox(height: 20),
             _label('Upload Type *'),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainer,
+                color: Theme.of(context).colorScheme.surfaceVariant,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
               ),
@@ -367,7 +508,7 @@ class _UploadScreenState extends State<UploadScreen> {
       padding: const EdgeInsets.only(bottom: 8.0, left: 4),
       child: Text(
         text,
-        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8)),
+        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8)),
       ),
     );
   }

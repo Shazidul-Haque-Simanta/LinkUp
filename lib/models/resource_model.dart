@@ -13,6 +13,7 @@ class ResourceModel {
   final Map<String, bool> upvotes;
   final Map<String, bool> downvotes;
   final DateTime createdAt;
+  final bool isPrivate;
 
   ResourceModel({
     required this.id,
@@ -29,6 +30,7 @@ class ResourceModel {
     this.upvotes = const {},
     this.downvotes = const {},
     required this.createdAt,
+    this.isPrivate = false,
   });
 
   factory ResourceModel.fromMap(String id, Map<dynamic, dynamic> map) {
@@ -57,6 +59,7 @@ class ResourceModel {
       upvotes: Map<String, bool>.from(map['upvotes'] ?? {}),
       downvotes: Map<String, bool>.from(map['downvotes'] ?? {}),
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt'] ?? 0),
+      isPrivate: map['isPrivate'] ?? false,
     );
   }
 
@@ -75,6 +78,7 @@ class ResourceModel {
       'upvotes': upvotes,
       'downvotes': downvotes,
       'createdAt': createdAt.millisecondsSinceEpoch,
+      'isPrivate': isPrivate,
     };
   }
 }

@@ -5,6 +5,10 @@ import 'package:project_v2/features/settings/presentation/pages/settings_screen.
 import 'package:project_v2/services/firebase_service.dart';
 import 'package:project_v2/models/user_model.dart';
 import 'package:project_v2/models/resource_model.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:io';
+
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -17,6 +21,45 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final FirebaseService _firebaseService = FirebaseService();
+  bool _isUploading = false;
+
+  Future<void> _pickAndUploadImage(String uid) async {
+    final ImagePicker picker = ImagePicker();
+    try {
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (image == null) return;
+
+      setState(() => _isUploading = true);
+
+      if (kIsWeb) {
+        final bytes = await image.readAsBytes();
+        await _firebaseService.updateProfilePictureWeb(uid, bytes);
+      } else {
+        final File file = File(image.path);
+        await _firebaseService.updateProfilePicture(uid, file);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile picture updated successfully!')),
+        );
+        setState(() => _isUploading = false);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error uploading image: $e')),
+        );
+        setState(() => _isUploading = false);
+      }
+    }
+  }
 
   void _showEditProfileDialog(UserModel user) {
     final nameController = TextEditingController(text: user.name);
@@ -135,7 +178,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final initial = userModel.name.isNotEmpty ? userModel.name[0].toUpperCase() : '?';
 
           return StreamBuilder<List<ResourceModel>>(
-            stream: _firebaseService.streamUserResources(targetUserId),
+            stream: _firebaseService.streamUserResources(targetUserId, viewerUid: currentUser?.uid),
             builder: (context, uploadsSnapshot) {
               final uploads = uploadsSnapshot.data ?? [];
               final totalUploads = uploads.length;
@@ -164,40 +207,95 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     const SizedBox(height: 20),
                     // Profile Header
-                    Stack(
-                      alignment: Alignment.bottomRight,
-                      children: [
-                        Container(
-                          height: 100,
-                          width: 100,
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Text(
-                              initial, 
-                              style: TextStyle(
-                                fontSize: 40, 
-                                color: Theme.of(context).colorScheme.primary, 
-                                fontWeight: FontWeight.bold
-                              )
+                    GestureDetector(
+                      onTap: isOwner && !_isUploading ? () => _pickAndUploadImage(userModel.uid) : null,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Container(
+                            height: 110,
+                            width: 110,
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                colors: [
+                                  Theme.of(context).colorScheme.primary,
+                                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
                             ),
-                          ),
-                        ),
-                        if (isOwner)
-                          GestureDetector(
-                            onTap: () => _showEditProfileDialog(userModel),
                             child: Container(
-                              padding: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.primary,
+                                color: Theme.of(context).colorScheme.surface,
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(Icons.edit, size: 16, color: Theme.of(context).colorScheme.onPrimary),
+                              padding: const EdgeInsets.all(2),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                                  shape: BoxShape.circle,
+                                  image: (userModel.profileImage != null && userModel.profileImage!.isNotEmpty)
+                                      ? DecorationImage(
+                                          image: NetworkImage(userModel.profileImage!),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null,
+                                ),
+                                child: (userModel.profileImage == null || userModel.profileImage!.isEmpty)
+                                    ? Center(
+                                        child: Text(
+                                          initial, 
+                                          style: TextStyle(
+                                            fontSize: 44, 
+                                            color: Theme.of(context).colorScheme.primary, 
+                                            fontWeight: FontWeight.bold
+                                          )
+                                        ),
+                                      )
+                                    : null,
+                              ),
                             ),
                           ),
-                      ],
+                          if (_isUploading)
+                            Container(
+                              height: 110,
+                              width: 110,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.4),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                            ),
+                          if (isOwner && !_isUploading)
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Theme.of(context).colorScheme.surface, width: 2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.2),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    )
+                                  ],
+                                ),
+                                child: Icon(Icons.camera_alt_rounded, size: 16, color: Theme.of(context).colorScheme.onPrimary),
+                              ),
+                            ),
+                        ],
+                      ),
                     ).animate().fade(duration: 400.ms).scaleXY(begin: 0.8, curve: Curves.easeOutBack),
                     const SizedBox(height: 16),
                     Column(
@@ -333,6 +431,77 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return downloads.toString();
   }
 
+  void _showResourceOptions(ResourceModel resource) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).cardTheme.color,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Container(height: 4, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 16),
+          ListTile(
+            leading: Icon(resource.isPrivate ? Icons.public : Icons.lock_outline, color: Theme.of(context).colorScheme.primary),
+            title: Text(resource.isPrivate ? 'Make Public' : 'Make Private'),
+            onTap: () async {
+              final scaffoldMsg = ScaffoldMessenger.of(context);
+              Navigator.pop(context);
+              try {
+                await _firebaseService.toggleResourcePrivacy(resource.id, !resource.isPrivate);
+                if (mounted) {
+                  scaffoldMsg.showSnackBar(
+                    SnackBar(content: Text(resource.isPrivate ? 'Resource is now public' : 'Resource is now private')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) scaffoldMsg.showSnackBar(SnackBar(content: Text('Error: $e')));
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+            title: const Text('Delete Resource', style: TextStyle(color: Colors.redAccent)),
+            onTap: () async {
+              final scaffoldMsg = ScaffoldMessenger.of(context);
+              Navigator.pop(context);
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Delete Resource?'),
+                  content: const Text('This will permanently remove the record and the physical file. This action cannot be undone.'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+                      child: const Text('Delete'),
+                    ),
+                  ],
+                ),
+              );
+
+              if (confirm == true) {
+                try {
+                  await _firebaseService.deleteResource(resource.id);
+                  if (mounted) {
+                    scaffoldMsg.showSnackBar(
+                      const SnackBar(content: Text('Resource deleted successfully')),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) scaffoldMsg.showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
+              }
+            },
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
   Widget _statItem(String value, String label) {
     return Column(
       children: [
@@ -361,9 +530,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final resource = uploads[index];
+          final isOwner = _firebaseService.currentUser?.uid == resource.uploaderId;
           return ResourceCard.fromModel(
             resource: resource,
             onTap: () => _navigateToDetail(context, resource.id),
+            onMenuTap: isOwner ? () => _showResourceOptions(resource) : null,
           );
         },
       ),

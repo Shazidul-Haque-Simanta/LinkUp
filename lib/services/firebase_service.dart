@@ -2,7 +2,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
+import 'dart:convert';
 import 'dart:developer';
+import 'dart:math' as math;
+import 'package:dio/dio.dart';
 import 'package:project_v2/models/user_model.dart';
 import 'package:project_v2/models/resource_model.dart';
 import 'package:project_v2/models/comment_model.dart';
@@ -11,9 +14,17 @@ import 'package:project_v2/models/forum_models.dart';
 import 'package:project_v2/models/group_models.dart';
 
 class FirebaseService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  final FirebaseAuth _auth;
+  final DatabaseReference _dbRef;
+  final FirebaseStorage _storage;
+
+  FirebaseService({
+    FirebaseAuth? auth,
+    DatabaseReference? dbRef,
+    FirebaseStorage? storage,
+  }) : _auth = auth ?? FirebaseAuth.instance,
+       _dbRef = dbRef ?? FirebaseDatabase.instance.ref(),
+       _storage = storage ?? FirebaseStorage.instance;
 
   // --- Auth Helpers ---
 
@@ -61,6 +72,7 @@ class FirebaseService {
   }
 
   Future<void> updateUserProfile(String uid, Map<String, dynamic> data) async {
+    if (currentUser?.uid != uid) throw Exception('Unauthorized: You can only update your own profile.');
     try {
       await _dbRef.child('users').child(uid).update(data);
     } catch (e) {
@@ -86,7 +98,8 @@ class FirebaseService {
         await createNotification(
           targetUserId, 
           'follow', 
-          '$currentUserName started following you!'
+          '$currentUserName started following you!',
+          senderId: currentUserId,
         );
       }
     } catch (e) {
@@ -112,25 +125,78 @@ class FirebaseService {
     });
   }
 
-  // --- File Storage ---
+  // --- File Storage (Custom Web Server via shazid.info) ---
 
   Future<String> uploadResourceFile(File file, String fileName) async {
     try {
-      final ref = _storage.ref().child('resources').child(fileName);
-      final uploadTask = await ref.putFile(file);
-      return await uploadTask.ref.getDownloadURL();
+      final dio = Dio();
+      FormData formData = FormData.fromMap({
+        // The key 'file' must strictly match $_FILES["file"] in your upload.php
+        "file": await MultipartFile.fromFile(file.path, filename: fileName),
+      });
+
+      dio.options.connectTimeout = const Duration(minutes: 5);
+      dio.options.receiveTimeout = const Duration(minutes: 5);
+
+      final response = await dio.post(
+        "http://shazid.info/uploadLinkup.php",
+        data: formData,
+      );
+
+      if (response.statusCode == 200) {
+        var responseData = response.data;
+        if (responseData is String) {
+          responseData = jsonDecode(responseData);
+        }
+
+        if (responseData['status'] == 'success') {
+          return responseData['url']; // e.g., https://shazid.info/uploads/171000_...
+        } else {
+          final sMsg = responseData['message'] ?? responseData['status'];
+          throw Exception("Server upload failed: $sMsg");
+        }
+      } else {
+         throw Exception("Server returned status: ${response.statusCode}");
+      }
     } catch (e) {
-      throw Exception('Failed to upload file: $e');
+      log('uploadResourceFile error: $e');
+      throw Exception('Failed to upload file to shazid.info: $e');
     }
   }
 
   Future<String> uploadResourceFileWeb(dynamic bytes, String fileName) async {
     try {
-      final ref = _storage.ref().child('resources').child(fileName);
-      final uploadTask = await ref.putData(bytes);
-      return await uploadTask.ref.getDownloadURL();
+      final dio = Dio();
+      FormData formData = FormData.fromMap({
+        "file": MultipartFile.fromBytes(bytes as List<int>, filename: fileName),
+      });
+
+      dio.options.connectTimeout = const Duration(minutes: 5);
+      dio.options.receiveTimeout = const Duration(minutes: 5);
+
+      final response = await dio.post(
+        "http://shazid.info/uploadLinkup.php",
+        data: formData,
+      );
+
+      if (response.statusCode == 200) {
+        var responseData = response.data;
+        if (responseData is String) {
+          responseData = jsonDecode(responseData);
+        }
+
+        if (responseData['status'] == 'success') {
+          return responseData['url'];
+        } else {
+          final sMsg = responseData['message'] ?? responseData['status'];
+          throw Exception("Server upload failed: $sMsg");
+        }
+      } else {
+         throw Exception("Server returned status: ${response.statusCode}");
+      }
     } catch (e) {
-      throw Exception('Failed to upload file (Web): $e');
+      log('uploadResourceFileWeb error: $e');
+      throw Exception('Failed to upload file to shazid.info (Web): $e');
     }
   }
 
@@ -153,13 +219,37 @@ class FirebaseService {
     }
   }
 
+  Future<bool> checkQuestionExists(String courseCode) async {
+    try {
+      final snapshot = await _dbRef.child('resources')
+          .orderByChild('type')
+          .equalTo('Question')
+          .get();
+      
+      if (!snapshot.exists) return false;
+      
+      final Map<dynamic, dynamic> data = snapshot.value as Map<dynamic, dynamic>;
+      // Check if any matching type also matches the course code
+      return data.values.any((r) => 
+        r is Map && 
+        r['courseCode'].toString().toLowerCase() == courseCode.toLowerCase().trim()
+      );
+    } catch (e) {
+      log('checkQuestionExists error: $e');
+      return false;
+    }
+  }
+
   Future<List<ResourceModel>> getResources() async {
     try {
       final snapshot = await _dbRef.child('resources').get();
       if (!snapshot.exists) return [];
       
       final Map<dynamic, dynamic> data = snapshot.value as Map<dynamic, dynamic>;
-      return data.entries.map((e) => ResourceModel.fromMap(e.key.toString(), e.value as Map<dynamic, dynamic>)).toList();
+      return data.entries
+          .map((e) => ResourceModel.fromMap(e.key.toString(), e.value as Map<dynamic, dynamic>))
+          .where((r) => !r.isPrivate) // Never expose private resources to callers
+          .toList();
     } catch (e) {
       throw Exception('Failed to get resources: $e');
     }
@@ -167,55 +257,155 @@ class FirebaseService {
 
   Stream<List<ResourceModel>> streamResources() {
     return _dbRef.child('resources').onValue.map((event) {
-      if (!event.snapshot.exists) return [];
-      final Map<dynamic, dynamic> data = event.snapshot.value as Map<dynamic, dynamic>;
-      return data.entries.map((e) => ResourceModel.fromMap(e.key.toString(), e.value as Map<dynamic, dynamic>)).toList();
+      if (!event.snapshot.exists || event.snapshot.value == null) return [];
+      
+      final dynamic rawData = event.snapshot.value;
+      Map<dynamic, dynamic> data = {};
+      
+      if (rawData is Map) {
+        data = rawData;
+      } else if (rawData is List) {
+        // Handle case where RTDB returns a list for numeric-like keys
+        for (int i = 0; i < rawData.length; i++) {
+          if (rawData[i] != null) data[i.toString()] = rawData[i];
+        }
+      }
+
+      final List<ResourceModel> items = [];
+      data.forEach((key, value) {
+        try {
+          if (value is Map) {
+            final resource = ResourceModel.fromMap(key.toString(), value);
+            if (!resource.isPrivate) {
+              items.add(resource);
+            }
+          }
+        } catch (e) {
+          log('Error parsing resource $key: $e');
+        }
+      });
+      return items;
     });
   }
 
   Stream<ResourceModel?> streamResourceById(String id) {
     return _dbRef.child('resources').child(id).onValue.map((event) {
       if (!event.snapshot.exists) return null;
-      return ResourceModel.fromMap(id, event.snapshot.value as Map<dynamic, dynamic>);
+      final resource = ResourceModel.fromMap(id, event.snapshot.value as Map<dynamic, dynamic>);
+      
+      // Privacy Check: Only owner can see private resources
+      if (resource.isPrivate && resource.uploaderId != currentUser?.uid) {
+        return null;
+      }
+      return resource;
     });
   }
 
-  Stream<List<ResourceModel>> streamTrendingResources({int limit = 5}) {
-    // We stream all resources and sort locally because Firebase RTDB 
-    // requires strict indexing for orderByChild, and we later filter by Subject.
+  double calculateTrendingScore(ResourceModel resource) {
+    // 1. Engagement (downloads are good, but votes are active engagement)
+    final int totalVotes = resource.upvotes.length + resource.downvotes.length;
+    final int engagement = resource.downloads + (totalVotes * 5);
+    
+    // 2. Quality (ratings are dynamically Bayesian from 1.0 to 5.0)
+    final double quality = resource.rating;
+    
+    // 3. Base Score
+    final double baseScore = (engagement + 1) * quality;
+    
+    // 4. Time Decay
+    final int ageInHours = DateTime.now().difference(resource.createdAt).inHours;
+    // Hacker News style gravity. Items older than a week (168 hours) naturally fall off.
+    const double gravity = 1.5; 
+    
+    return baseScore / math.pow(ageInHours + 2, gravity);
+  }
+
+  Stream<List<ResourceModel>> streamTrendingResources({int limit = 5, String? subject}) {
     return _dbRef.child('resources').onValue.map((event) {
-      if (!event.snapshot.exists) return [];
-      final Map<dynamic, dynamic> data = event.snapshot.value as Map<dynamic, dynamic>;
-      final List<ResourceModel> list = data.entries
-          .map((e) => ResourceModel.fromMap(e.key.toString(), e.value as Map<dynamic, dynamic>))
-          .toList();
-      list.sort((a, b) => b.downloads.compareTo(a.downloads));
+      if (!event.snapshot.exists || event.snapshot.value == null) return [];
+      
+      final dynamic rawData = event.snapshot.value;
+      Map<dynamic, dynamic> data = {};
+      if (rawData is Map) data = rawData;
+      else if (rawData is List) {
+        for (int i = 0; i < rawData.length; i++) {
+          if (rawData[i] != null) data[i.toString()] = rawData[i];
+        }
+      }
+
+      var list = <ResourceModel>[];
+      data.forEach((key, value) {
+        try {
+          if (value is Map) {
+            final res = ResourceModel.fromMap(key.toString(), value);
+            if (!res.isPrivate) {
+              if (subject == null || subject == 'All' || res.subject == subject) {
+                list.add(res);
+              }
+            }
+          }
+        } catch (e) { /* skip */ }
+      });
+
+      // Relaxation: Don't filter strictly if it results in an empty list.
+      // Instead, just sort by Trending Score and take the top ones.
+      list.sort((a, b) => calculateTrendingScore(b).compareTo(calculateTrendingScore(a)));
+      
       return list.take(limit).toList();
     });
   }
 
-  Stream<List<ResourceModel>> streamLatestResources({int limit = 5}) {
+  Stream<List<ResourceModel>> streamLatestResources({int limit = 5, String? subject}) {
     return _dbRef.child('resources').onValue.map((event) {
-      if (!event.snapshot.exists) return [];
-      final Map<dynamic, dynamic> data = event.snapshot.value as Map<dynamic, dynamic>;
-      final List<ResourceModel> list = data.entries
-          .map((e) => ResourceModel.fromMap(e.key.toString(), e.value as Map<dynamic, dynamic>))
-          .toList();
+      if (!event.snapshot.exists || event.snapshot.value == null) return [];
+      
+      final dynamic rawData = event.snapshot.value;
+      Map<dynamic, dynamic> data = {};
+      if (rawData is Map) data = rawData;
+      else if (rawData is List) {
+        for (int i = 0; i < rawData.length; i++) {
+          if (rawData[i] != null) data[i.toString()] = rawData[i];
+        }
+      }
+
+      var list = <ResourceModel>[];
+      data.forEach((key, value) {
+        try {
+          if (value is Map) {
+            final res = ResourceModel.fromMap(key.toString(), value);
+            if (!res.isPrivate) {
+              if (subject == null || subject == 'All' || res.subject == subject) {
+                list.add(res);
+              }
+            }
+          }
+        } catch (e) { /* skip */ }
+      });
+      
       list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return list.take(limit).toList();
     });
   }
 
-  Stream<List<ResourceModel>> streamUserResources(String uid) {
+  Stream<List<ResourceModel>> streamUserResources(String uid, {String? viewerUid}) {
     return _dbRef.child('resources').orderByChild('uploaderId').equalTo(uid).onValue.map((event) {
       if (!event.snapshot.exists) return [];
       final Map<dynamic, dynamic> data = event.snapshot.value as Map<dynamic, dynamic>;
       final List<ResourceModel> list = data.entries
           .map((e) => ResourceModel.fromMap(e.key.toString(), e.value as Map<dynamic, dynamic>))
+          .where((r) => !r.isPrivate || (viewerUid != null && r.uploaderId == viewerUid))
           .toList();
       list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return list;
     });
+  }
+
+  Future<void> toggleResourcePrivacy(String resourceId, bool isPrivate) async {
+    try {
+      await _dbRef.child('resources').child(resourceId).update({'isPrivate': isPrivate});
+    } catch (e) {
+      throw Exception('Failed to update privacy: $e');
+    }
   }
 
   Future<void> incrementDownloadCount(String resourceId) async {
@@ -283,7 +473,13 @@ class FirebaseService {
       final String uploaderId = data['uploaderId'] ?? '';
       if (uploaderId.isNotEmpty && uploaderId != uid) {
         final action = isUpvote ? 'upvoted' : 'downvoted';
-        await createNotification(uploaderId, 'vote', 'Someone $action your resource: ${data['title']}');
+        await createNotification(
+          uploaderId, 
+          'resource_vote', 
+          'Someone $action your resource: ${data['title']}',
+          targetId: resourceId,
+          senderId: uid,
+        );
       }
 
     } catch (e) {
@@ -291,9 +487,47 @@ class FirebaseService {
     }
   }
 
+  Future<void> deletePhysicalFile(String fileUrl) async {
+    if (fileUrl.isEmpty || !fileUrl.contains('shazid.info')) return;
+    try {
+      final dio = Dio();
+      FormData formData = FormData.fromMap({
+        'action': 'delete',
+        'file_url': fileUrl,
+      });
+      await dio.post(
+        "http://shazid.info/uploadLinkup.php",
+        data: formData,
+      );
+      log('Successfully sent wipe request to server for physical file.');
+    } catch (e) {
+      log('Failed to delete physical file from server: $e');
+    }
+  }
+
   Future<void> deleteResource(String resourceId) async {
     try {
+      // Find the resource first to wipe its physical file securely!
+      final snapshot = await _dbRef.child('resources').child(resourceId).get();
+      if (!snapshot.exists) {
+        throw Exception('Resource not found: $resourceId');
+      }
+
+      final data = Map<String, dynamic>.from(snapshot.value as Map);
+      final String uploaderId = data['uploaderId'] ?? '';
+
+      // Ownership Check
+      if (uploaderId != currentUser?.uid) {
+        throw Exception('Unauthorized: You are not the owner of this resource.');
+      }
+
+      if (data['fileurls'] != null) {
+          await deletePhysicalFile(data['fileurls']);
+      }
+      
       await _dbRef.child('resources').child(resourceId).remove();
+      // Also remove from user's uploads relationship
+      await _dbRef.child('users').child(uploaderId).child('uploads').child(resourceId).remove();
     } catch (e) {
       throw Exception('Failed to delete resource: $e');
     }
@@ -332,8 +566,10 @@ class FirebaseService {
             log('addComment -> Notifying parent commenter: $parentUserId');
             await createNotification(
               parentUserId,
-              'reply',
+              'resource_reply',
               '$commenterName replied to your comment',
+              targetId: resourceId,
+              senderId: userId,
             );
           }
         }
@@ -353,6 +589,8 @@ class FirebaseService {
             ownerId,
             'comment',
             '$commenterName commented on "$resourceTitle"',
+            targetId: resourceId,
+            senderId: userId,
           );
         }
       }
@@ -372,6 +610,13 @@ class FirebaseService {
 
   Future<void> deleteComment(String resourceId, String commentId) async {
     try {
+      final snapshot = await _dbRef.child('comments').child(resourceId).child(commentId).get();
+      if (snapshot.exists) {
+        final data = snapshot.value as Map<dynamic, dynamic>;
+        if (data['userId'] != currentUser?.uid) {
+          throw Exception('Unauthorized: You can only delete your own comments.');
+        }
+      }
       await _dbRef.child('comments').child(resourceId).child(commentId).remove();
     } catch (e) {
       throw Exception('Failed to delete comment: $e');
@@ -447,13 +692,15 @@ class FirebaseService {
     });
   }
 
-  Future<void> addForumReply(String postId, String text, String userId) async {
+  Future<void> addForumReply(String postId, String text, String userId, {String? imageUrl, String? parentId}) async {
     try {
       final replyRef = _dbRef.child('forumReplies').child(postId).push();
       final reply = ForumReplyModel(
         id: replyRef.key!,
         userId: userId,
         text: text,
+        imageUrl: imageUrl,
+        parentId: parentId,
         createdAt: DateTime.now(),
       );
       await replyRef.set(reply.toMap());
@@ -473,21 +720,16 @@ class FirebaseService {
         final String ownerId = postData['userId']?.toString() ?? '';
         final String postTitle = postData['title']?.toString() ?? 'your post';
 
-        log('addForumReply -> Post: $postTitle, OwnerID: $ownerId, UserID: $userId');
-
         // Only notify if someone else is replying
         if (ownerId.isNotEmpty && ownerId != userId) {
-          log('addForumReply -> Triggering createNotification for $ownerId');
           await createNotification(
             ownerId,
-            'reply',
+            'forum_reply',
             '$replierName replied to your discussion "$postTitle"',
+            targetId: postId,
+            senderId: userId,
           );
-        } else {
-          log('addForumReply -> Did not notify: ownerId is empty ($ownerId) or equals userId ($userId)');
         }
-      } else {
-        log('addForumReply -> Snapshot does not exist for forumPosts/$postId');
       }
     } catch (e) {
       log('addForumReply error: $e');
@@ -507,11 +749,31 @@ class FirebaseService {
 
   Future<void> upvoteForumPost(String postId) async {
     try {
-      await _dbRef.child('forumPosts').child(postId).child('upvotes').runTransaction((Object? current) {
+      final postRef = _dbRef.child('forumPosts').child(postId);
+      await postRef.child('upvotes').runTransaction((Object? current) {
         if (current == null) return Transaction.success(1);
         if (current is int) return Transaction.success(current + 1);
         return Transaction.success(1);
       });
+
+      // Notify the author about the upvote
+      final snapshot = await postRef.get();
+      if (snapshot.exists) {
+        final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
+        final String ownerId = data['userId']?.toString() ?? '';
+        final String postTitle = data['title']?.toString() ?? 'your post';
+        final String currentUid = currentUser?.uid ?? '';
+
+        if (ownerId.isNotEmpty && ownerId != currentUid) {
+          await createNotification(
+            ownerId, 
+            'forum_vote', 
+            'Someone upvoted your post: "$postTitle"',
+            targetId: postId,
+            senderId: currentUid,
+          );
+        }
+      }
     } catch (e) {
       log('Error upvoting post: $e');
     }
@@ -540,13 +802,15 @@ class FirebaseService {
   }
 
   // --- Group Chat Methods ---
-  Future<void> sendGroupMessage(String groupId, String text, String userId) async {
+  Future<void> sendGroupMessage(String groupId, String text, String userId, {String? fileUrl, String? fileName}) async {
     try {
       final msgRef = _dbRef.child('groupMessages').child(groupId).push();
       final msg = MessageModel(
         id: msgRef.key ?? DateTime.now().millisecondsSinceEpoch.toString(),
         userId: userId,
         text: text,
+        fileUrl: fileUrl,
+        fileName: fileName,
         createdAt: DateTime.now(),
       );
       await msgRef.set(msg.toMap());
@@ -590,13 +854,15 @@ class FirebaseService {
 
   // --- Notifications ---
 
-  Future<void> createNotification(String uid, String type, String message) async {
+  Future<void> createNotification(String uid, String type, String message, {String? targetId, String? senderId}) async {
     try {
       final notifRef = _dbRef.child('notifications').child(uid).push();
       final notification = NotificationModel(
         id: notifRef.key!,
         type: type,
         message: message,
+        targetId: targetId,
+        senderId: senderId,
         createdAt: DateTime.now(),
       );
       await notifRef.set(notification.toMap());
@@ -620,4 +886,223 @@ class FirebaseService {
       throw Exception('Failed to mark notification as read: $e');
     }
   }
+
+  Future<void> markAllNotificationsRead(String uid) async {
+    try {
+      final snapshot = await _dbRef.child('notifications').child(uid).get();
+      if (!snapshot.exists) return;
+
+      final Map<dynamic, dynamic> notifications = snapshot.value as Map<dynamic, dynamic>;
+      final Map<String, dynamic> updates = {};
+
+      for (var entry in notifications.entries) {
+        final notifData = entry.value as Map<dynamic, dynamic>;
+        if (notifData['read'] == false) {
+          updates['${entry.key}/read'] = true;
+        }
+      }
+
+      if (updates.isNotEmpty) {
+        await _dbRef.child('notifications').child(uid).update(updates);
+      }
+    } catch (e) {
+      log('markAllNotificationsRead error: $e');
+      throw Exception('Failed to clear notifications: $e');
+    }
+  }
+
+  Stream<List<String>> streamSubjects() {
+    return _dbRef.child('resources').onValue.map((event) {
+      final defaultSubjects = ['Computer Science', 'Mathematics', 'Physics', 'Business', 'Other'];
+      if (!event.snapshot.exists) return defaultSubjects;
+      
+      final Map<dynamic, dynamic> data = event.snapshot.value as Map<dynamic, dynamic>;
+      final subjects = <String>{...defaultSubjects};
+      
+      for (var entry in data.values) {
+        // Only collect subjects from PUBLIC resources to avoid leaking private resource metadata
+        if (entry is Map && entry['subject'] != null && entry['isPrivate'] != true) {
+          subjects.add(entry['subject'].toString());
+        }
+      }
+      final list = subjects.toList();
+      list.sort((a, b) {
+        if (a == 'Other') return 1;
+        if (b == 'Other') return -1;
+        return a.compareTo(b);
+      });
+      return list;
+    });
+  }
+
+  Future<void> updateProfilePicture(String uid, File file) async {
+    try {
+      final String fileName = 'profile_${uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final String imageUrl = await uploadResourceFile(file, fileName);
+      await _dbRef.child('users').child(uid).update({'profileImage': imageUrl});
+    } catch (e) {
+      log('updateProfilePicture error: $e');
+      throw Exception('Failed to update profile picture: $e');
+    }
+  }
+
+  Future<void> updateProfilePictureWeb(String uid, dynamic bytes) async {
+    try {
+      final String fileName = 'profile_${uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final String imageUrl = await uploadResourceFileWeb(bytes, fileName);
+      await _dbRef.child('users').child(uid).update({'profileImage': imageUrl});
+    } catch (e) {
+      log('updateProfilePicture error: $e');
+      throw Exception('Failed to update profile picture: $e');
+    }
+  }
+
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+      log('Password reset email sent to $email');
+    } on FirebaseAuthException catch (e) {
+      log('sendPasswordResetEmail error: ${e.code} - ${e.message}');
+      throw Exception(e.message ?? 'Failed to send reset email');
+    } catch (e) {
+      log('sendPasswordResetEmail unexpected error: $e');
+      throw Exception('An unexpected error occurred: $e');
+    }
+  }
+
+  // --- Top Contributors ---
+
+  /// Fetches all users, computes their contributor score, assigns a tier level,
+  /// and returns a list sorted by score descending.
+  Future<List<ContributorModel>> getTopContributors({int limit = 50}) async {
+    try {
+      // 1. Fetch all users
+      final usersSnap = await _dbRef.child('users').get();
+      if (!usersSnap.exists) return [];
+      final usersMap = usersSnap.value as Map<dynamic, dynamic>;
+
+      // 2. Fetch all PUBLIC resources once
+      final resourcesSnap = await _dbRef.child('resources').get();
+      Map<dynamic, dynamic> allResources = {};
+      if (resourcesSnap.exists && resourcesSnap.value != null) {
+        final raw = resourcesSnap.value;
+        if (raw is Map) allResources = raw;
+      }
+
+      // 3. Pre-group resources by uploaderId for fast lookup
+      final Map<String, List<Map<dynamic, dynamic>>> resourcesByUser = {};
+      allResources.forEach((key, value) {
+        if (value is Map && value['isPrivate'] != true) {
+          final uid = value['uploaderId']?.toString() ?? '';
+          if (uid.isNotEmpty) {
+            resourcesByUser.putIfAbsent(uid, () => []);
+            resourcesByUser[uid]!.add(value);
+          }
+        }
+      });
+
+      // 4. Build ContributorModel for each user
+      final List<ContributorModel> contributors = [];
+      usersMap.forEach((uid, userData) {
+        try {
+          if (userData is! Map) return;
+          final user = UserModel.fromMap(uid.toString(), userData);
+          final userResources = resourcesByUser[uid.toString()] ?? [];
+
+          final int uploadCount = userResources.length;
+          final int followerCount = user.followers.length;
+
+          double totalRating = 0;
+          int totalDownloads = 0;
+          for (final r in userResources) {
+            totalRating += (r['rating'] ?? 0.0) is num
+                ? (r['rating'] as num).toDouble()
+                : 0.0;
+            totalDownloads += (r['downloads'] ?? 0) is int
+                ? (r['downloads'] as int)
+                : int.tryParse(r['downloads'].toString()) ?? 0;
+          }
+          final double avgRating =
+              uploadCount > 0 ? totalRating / uploadCount : 0.0;
+
+          // Composite score formula
+          final double score = (uploadCount * 10) +
+              (followerCount * 5) +
+              (avgRating * 15) +
+              (totalDownloads * 1);
+
+          contributors.add(ContributorModel(
+            user: user,
+            uploadCount: uploadCount,
+            followerCount: followerCount,
+            avgRating: avgRating,
+            totalDownloads: totalDownloads,
+            score: score,
+          ));
+        } catch (e) {
+          log('getTopContributors: error parsing user $uid: $e');
+        }
+      });
+
+      // 5. Sort by score descending, take top [limit]
+      contributors.sort((a, b) => b.score.compareTo(a.score));
+      return contributors.take(limit).toList();
+    } catch (e) {
+      log('getTopContributors error: $e');
+      throw Exception('Failed to fetch top contributors: $e');
+    }
+  }
 }
+
+// ---------------------------------------------------------------------------
+// Contributor data model (lives here for locality — no extra file needed)
+// ---------------------------------------------------------------------------
+
+enum ContributorLevel {
+  legend,
+  diamond,
+  platinum,
+  gold,
+  silver,
+  bronze,
+}
+
+class ContributorModel {
+  final UserModel user;
+  final int uploadCount;
+  final int followerCount;
+  final double avgRating;
+  final int totalDownloads;
+  final double score;
+
+  ContributorModel({
+    required this.user,
+    required this.uploadCount,
+    required this.followerCount,
+    required this.avgRating,
+    required this.totalDownloads,
+    required this.score,
+  });
+
+  ContributorLevel get level {
+    if (score >= 500) return ContributorLevel.legend;
+    if (score >= 200) return ContributorLevel.diamond;
+    if (score >= 100) return ContributorLevel.platinum;
+    if (score >= 50)  return ContributorLevel.gold;
+    if (score >= 20)  return ContributorLevel.silver;
+    return ContributorLevel.bronze;
+  }
+
+  String get levelName {
+    switch (level) {
+      case ContributorLevel.legend:   return 'Legend';
+      case ContributorLevel.diamond:  return 'Diamond';
+      case ContributorLevel.platinum: return 'Platinum';
+      case ContributorLevel.gold:     return 'Gold';
+      case ContributorLevel.silver:   return 'Silver';
+      case ContributorLevel.bronze:   return 'Bronze';
+    }
+  }
+}
+
+

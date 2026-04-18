@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:project_v2/services/firebase_service.dart';
 import 'package:project_v2/models/notification_model.dart';
+import 'package:project_v2/features/forum/presentation/pages/forum_post_detail_screen.dart';
+import 'package:project_v2/features/resource/presentation/pages/resource_detail_screen.dart';
+import 'package:project_v2/features/profile/presentation/pages/profile_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -13,19 +16,40 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   final FirebaseService _firebaseService = FirebaseService();
 
   void _handleNotificationTap(NotificationModel notification) async {
+    final user = _firebaseService.currentUser;
+    if (user == null) return;
+
+    // 1. Mark as read in the background if it's currently unread
     if (!notification.read) {
-      final user = _firebaseService.currentUser;
-      if (user != null) {
-        try {
-          await _firebaseService.markNotificationRead(user.uid, notification.id);
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error: $e')),
-            );
-          }
-        }
+      _firebaseService.markNotificationRead(user.uid, notification.id).catchError((e) {
+        debugPrint('Error marking notification read: $e');
+      });
+    }
+
+    // 2. Dynamic Redirection (Always execute, regardless of read status)
+    if (notification.targetId != null) {
+      if (notification.type == 'reply' || notification.type == 'vote' || notification.type == 'forum_reply' || notification.type == 'forum_vote') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ForumPostDetailScreen(postId: notification.targetId!),
+          ),
+        );
+      } else if (notification.type == 'upload' || notification.type == 'comment' || notification.type == 'resource_reply' || notification.type == 'resource_vote') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ResourceDetailScreen(resourceId: notification.targetId!),
+          ),
+        );
       }
+    } else if (notification.type == 'follow' && notification.senderId != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ProfileScreen(userId: notification.senderId!),
+        ),
+      );
     }
   }
 
@@ -54,6 +78,25 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           'Notifications',
           style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 18),
         ),
+        actions: [
+          StreamBuilder<List<NotificationModel>>(
+            stream: _firebaseService.getUserNotifications(user?.uid ?? ''),
+            builder: (context, snapshot) {
+              final unreadCount = (snapshot.data ?? []).where((n) => !n.read).length;
+              if (unreadCount == 0) return const SizedBox.shrink();
+              
+              return TextButton.icon(
+                onPressed: () async {
+                  if (user != null) {
+                    await _firebaseService.markAllNotificationsRead(user.uid);
+                  }
+                },
+                icon: const Icon(Icons.done_all, size: 18),
+                label: const Text('Mark all as read', style: TextStyle(fontSize: 12)),
+              );
+            },
+          ),
+        ],
         centerTitle: false,
       ),
       body: user == null
@@ -114,11 +157,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         iconColor = Colors.blue;
         break;
       case 'reply':
+      case 'forum_reply':
+      case 'resource_reply':
         icon = Icons.reply;
         bgColor = Colors.indigo.withValues(alpha: 0.1);
         iconColor = Colors.indigo;
         break;
       case 'vote':
+      case 'forum_vote':
+      case 'resource_vote':
         icon = Icons.star_outline;
         bgColor = Colors.amber.withValues(alpha: 0.1);
         iconColor = Colors.amber;

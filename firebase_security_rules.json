@@ -1,0 +1,42 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    "users": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    "resources": {
+      ".read": "auth != null",
+      "$resourceId": {
+        ".write": "auth != null && (!data.exists() || data.child('uploaderId').val() == auth.uid)",
+        ".validate": "newData.hasChildren(['title', 'uploaderId'])",
+        "isPrivate": {
+         
+           ".read": "auth != null && (data.val() == false || root.child('resources').child($resourceId).child('uploaderId').val() == auth.uid)"
+        }
+      }
+    },
+    "comments": {
+      "$resourceId": {
+        ".read": "auth != null",
+        "$commentId": {
+          ".write": "auth != null && (!data.exists() || data.child('userId').val() == auth.uid)"
+        }
+      }
+    },
+    "forumPosts": {
+      ".read": "auth != null",
+      "$postId": {
+        ".write": "auth != null && (!data.exists() || data.child('userId').val() == auth.uid)"
+      }
+    },
+    "notifications": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null" 
+      }
+    }
+  }
+}

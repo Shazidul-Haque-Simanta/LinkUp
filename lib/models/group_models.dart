@@ -37,12 +37,16 @@ class MessageModel {
   final String id;
   final String userId;
   final String text;
+  final String? fileUrl;
+  final String? fileName;
   final DateTime createdAt;
 
   MessageModel({
     required this.id,
     required this.userId,
     required this.text,
+    this.fileUrl,
+    this.fileName,
     required this.createdAt,
   });
 
@@ -51,6 +55,8 @@ class MessageModel {
       id: id,
       userId: map['userId'] ?? '',
       text: map['text'] ?? '',
+      fileUrl: map['fileUrl'],
+      fileName: map['fileName'],
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt'] ?? 0),
     );
   }
@@ -59,6 +65,8 @@ class MessageModel {
     return {
       'userId': userId,
       'text': text,
+      'fileUrl': fileUrl,
+      'fileName': fileName,
       'createdAt': createdAt.millisecondsSinceEpoch,
     };
   }

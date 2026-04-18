@@ -8,7 +8,9 @@ class ResourceCard extends StatelessWidget {
   final String downloads;
   final String initial;
   final VoidCallback onTap;
+  final VoidCallback? onMenuTap;
   final ResourceModel? resource;
+  final Color? backgroundColor;
 
   const ResourceCard({
     super.key,
@@ -18,12 +20,16 @@ class ResourceCard extends StatelessWidget {
     required this.downloads,
     required this.initial,
     required this.onTap,
+    this.onMenuTap,
     this.resource,
+    this.backgroundColor,
   });
 
   factory ResourceCard.fromModel({
     required ResourceModel resource,
     required VoidCallback onTap,
+    VoidCallback? onMenuTap,
+    Color? backgroundColor,
   }) {
     return ResourceCard(
       title: resource.title,
@@ -32,7 +38,9 @@ class ResourceCard extends StatelessWidget {
       downloads: _formatDownloads(resource.downloads),
       initial: resource.title.isNotEmpty ? resource.title[0].toUpperCase() : '?',
       onTap: onTap,
+      onMenuTap: onMenuTap,
       resource: resource,
+      backgroundColor: backgroundColor,
     );
   }
 
@@ -50,7 +58,7 @@ class ResourceCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
+          color: backgroundColor ?? Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
@@ -72,10 +80,29 @@ class ResourceCard extends StatelessWidget {
                     : Theme.of(context).colorScheme.surfaceContainer,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                resource != null ? _getTypeIcon(resource!.type) : Icons.picture_as_pdf, 
-                color: resource != null ? _getTypeColor(resource!.type) : Theme.of(context).colorScheme.primary, 
-                size: 24,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(
+                    resource != null ? _getTypeIcon(resource!.type) : Icons.picture_as_pdf, 
+                    color: resource != null ? _getTypeColor(resource!.type) : Theme.of(context).colorScheme.primary, 
+                    size: 24,
+                  ),
+                  if (resource?.isPrivate ?? false)
+                    Positioned(
+                      right: -8,
+                      top: -8,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Theme.of(context).colorScheme.surface, width: 2),
+                        ),
+                        child: const Icon(Icons.lock, size: 10, color: Colors.white),
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(width: 16),
@@ -170,6 +197,13 @@ class ResourceCard extends StatelessWidget {
                 ),
               ),
             ),
+            if (onMenuTap != null)
+              IconButton(
+                icon: Icon(Icons.more_vert_rounded, size: 20, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
+                onPressed: onMenuTap,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
           ],
         ),
       ),

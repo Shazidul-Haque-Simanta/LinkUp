@@ -4,6 +4,7 @@ import 'package:project_v2/core/theme/theme_provider.dart';
 import 'package:project_v2/services/firebase_service.dart';
 import 'package:project_v2/models/user_model.dart';
 import 'package:project_v2/features/auth/presentation/pages/login_screen.dart';
+import 'package:project_v2/features/settings/presentation/pages/security_scan_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -260,6 +261,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                       // ── About Section ──────────────────────────────────
                       _sectionHeader('ABOUT'),
+                      _settingsItem(
+                        Icons.security_outlined,
+                        'Security & Privacy Scan',
+                        color: Colors.blueAccent,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SecurityScanScreen())),
+                      ),
                       _settingsItem(
                         Icons.assignment_outlined,
                         'Terms of Service',

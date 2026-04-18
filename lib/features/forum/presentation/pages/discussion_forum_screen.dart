@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:project_v2/services/firebase_service.dart';
 import 'package:project_v2/models/forum_models.dart';
 import 'package:project_v2/features/forum/presentation/pages/forum_post_detail_screen.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:typed_data';
 
 class DiscussionForumScreen extends StatefulWidget {
   const DiscussionForumScreen({super.key});
@@ -24,71 +28,139 @@ class _DiscussionForumScreenState extends State<DiscussionForumScreen> {
   void _showAskQuestionDialog() {
     final TextEditingController titleController = TextEditingController();
     final TextEditingController descController = TextEditingController();
+    Uint8List? selectedImageBytes;
+    String? selectedImageName;
+    bool isUploading = false;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Ask a Question', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleController,
-              decoration: InputDecoration(
-                labelText: 'Title / Subject',
-                labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
-              ),
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          title: Text('Start Discussion', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold)),
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                TextField(
+                  controller: titleController,
+                  decoration: InputDecoration(
+                    labelText: 'Title / Topic',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: descController,
+                  decoration: InputDecoration(
+                    labelText: 'Details (optional)',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 16),
+                
+                // Image Picker / Preview
+                if (selectedImageBytes != null)
+                  Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.memory(selectedImageBytes!, height: 150, fit: BoxFit.cover),
+                      ),
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          onPressed: () => setDialogState(() {
+                            selectedImageBytes = null;
+                            selectedImageName = null;
+                          }),
+                          style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final result = await FilePicker.platform.pickFiles(type: FileType.image);
+                      if (result != null) {
+                        setDialogState(() {
+                          selectedImageBytes = result.files.first.bytes;
+                          selectedImageName = result.files.first.name;
+                        });
+                      }
+                    },
+                    icon: const Icon(Icons.image_outlined),
+                    label: const Text('Add Image'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: descController,
-              decoration: InputDecoration(
-                labelText: 'Details',
-                labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+          ),
+        ),
+        actions: [
+            TextButton(
+              onPressed: isUploading ? null : () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: isUploading ? null : () async {
+                if (titleController.text.trim().isEmpty) return;
+                
+                final user = _firebaseService.currentUser;
+                if (user == null) return;
+
+                setDialogState(() => isUploading = true);
+
+                try {
+                  String? imageUrl;
+                  if (selectedImageBytes != null) {
+                    if (kIsWeb) {
+                      imageUrl = await _firebaseService.uploadResourceFileWeb(selectedImageBytes!, selectedImageName!);
+                    } else {
+                      // Fallback for native if needed, assuming the same helper works or similar
+                      // For now using web helper logic as it's a common pattern in your app
+                      imageUrl = await _firebaseService.uploadResourceFileWeb(selectedImageBytes!, selectedImageName!);
+                    }
+                  }
+
+                  final newPost = ForumPostModel(
+                    id: '',
+                    title: titleController.text.trim(),
+                    description: descController.text.trim(),
+                    userId: user.uid,
+                    imageUrl: imageUrl,
+                    createdAt: DateTime.now(),
+                  );
+
+                  await _firebaseService.createForumPost(newPost);
+                  if (context.mounted) Navigator.pop(context);
+                } catch (e) {
+                  setDialogState(() => isUploading = false);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
               ),
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-              maxLines: 3,
+              child: isUploading 
+                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text('Post'),
             ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleController.text.trim().isEmpty) return;
-              
-              final user = _firebaseService.currentUser;
-              if (user == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('You must be logged in to post')),
-                );
-                return;
-              }
-
-              final newPost = ForumPostModel(
-                id: '',
-                title: titleController.text.trim(),
-                description: descController.text.trim(),
-                userId: user.uid,
-                createdAt: DateTime.now(),
-              );
-
-              final nav = Navigator.of(context);
-              final scaffoldMsg = ScaffoldMessenger.of(context);
-
-              try {
-                nav.pop();
-                await _firebaseService.createForumPost(newPost);
-              } catch (e) {
-                scaffoldMsg.showSnackBar(
-                  SnackBar(content: Text('Error: $e')),
-                );
-              }
-            },
-            child: const Text('Ask'),
-          ),
-        ],
       ),
     );
   }
@@ -203,7 +275,10 @@ class _DiscussionForumScreenState extends State<DiscussionForumScreen> {
                             builder: (_) => ForumPostDetailScreen(post: post),
                           ),
                         ),
-                        child: _forumTopic(post),
+                        child: _forumTopic(post)
+                            .animate(delay: (40 * index).ms)
+                            .fadeIn(duration: 400.ms)
+                            .slideY(begin: 0.2, end: 0, curve: Curves.easeOutQuad),
                       );
                     },
                   );
@@ -259,6 +334,22 @@ class _DiscussionForumScreenState extends State<DiscussionForumScreen> {
                   style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8), fontSize: 13),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
+                ),
+              ],
+              if (post.imageUrl != null) ...[
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Hero(
+                    tag: 'post_image_${post.id}',
+                    child: Image.network(
+                      post.imageUrl!,
+                      height: 180,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+                  ),
                 ),
               ],
               const SizedBox(height: 12),

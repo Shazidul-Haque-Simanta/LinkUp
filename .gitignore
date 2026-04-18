@@ -3,6 +3,8 @@
 *.log
 *.pyc
 *.swp
+*.bak
+*.tmp
 .DS_Store
 .atom/
 .build/
@@ -18,10 +20,8 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# VS Code related
+.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -33,6 +33,24 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Firebase specific
+/lib/firebase_options.dart
+google-services.json
+GoogleService-Info.plist
+
+# Secrets
+.env
+.env*
+!*.example
+
+# Keystores and sign certificates
+*.keystore
+*.jks
+*.p12
+*.key
+*.pem
+/android/key.properties
+
 # Symbolication related
 app.*.symbols
 
@@ -43,3 +61,15 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Root level text logs and reports
+/analysis_log.txt
+/analysis_output.txt
+/analysis_results.txt
+/analyze_output.txt
+/doctor.txt
+/report.txt
+/final_analysis.txt
+/clean_analyze.txt
+/my_analysis.txt
+

@@ -3,17 +3,23 @@ import 'package:project_v2/features/home/presentation/widgets/resource_card.dart
 import 'package:project_v2/features/resource/presentation/pages/resource_detail_screen.dart';
 import 'package:project_v2/services/firebase_service.dart';
 import 'package:project_v2/models/resource_model.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'dart:ui';
 
 class SearchScreen extends StatefulWidget {
   final String? initialSubject;
   final bool initialSortByLatest;
   final bool initialSortByTopRated;
+  final bool enforceStrictTrending;
+  final int? enforceStrictLatestHours;
 
   const SearchScreen({
     super.key, 
     this.initialSubject, 
     this.initialSortByLatest = false, 
-    this.initialSortByTopRated = false
+    this.initialSortByTopRated = false,
+    this.enforceStrictTrending = false,
+    this.enforceStrictLatestHours,
   });
 
   @override
@@ -30,15 +36,7 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _sortByLatest = false;
   bool _sortByTopRated = false;
 
-  final List<String> _subjects = [
-    'All Subjects',
-    'Computer Science',
-    'Electrical Engineering',
-    'Mathematics',
-    'Physics',
-    'Business',
-    'Other'
-  ];
+
 
   @override
   void dispose() {
@@ -116,22 +114,29 @@ class _SearchScreenState extends State<SearchScreen> {
                     const SizedBox(width: 8),
                   ],
                   Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: _onSearchChanged,
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                        decoration: InputDecoration(
-                          icon: Icon(Icons.search, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
-                          hintText: 'Search by title or tags...',
-                          hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
-                          border: InputBorder.none,
-                          filled: false,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surfaceContainer.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
+                          ),
+                          child: TextField(
+                            controller: _searchController,
+                            onChanged: _onSearchChanged,
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                            decoration: InputDecoration(
+                              icon: Icon(Icons.search, color: Theme.of(context).colorScheme.primary),
+                              hintText: 'Search by title or tags...',
+                              hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
+                              border: InputBorder.none,
+                              filled: false,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -148,43 +153,49 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
 
-            // Filters
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Row(
-                children: [
-                  _filterDropdown('Subject', _subjects, _selectedSubject, (val) {
-                    setState(() => _selectedSubject = val == 'All Subjects' ? null : val);
-                  }),
-                  _actionChip(
-                    _selectedCourseCode ?? 'Course Code', 
-                    isActive: _selectedCourseCode != null, 
-                    onTap: _showCourseCodeDialog
+            StreamBuilder<List<String>>(
+              stream: _firebaseService.streamSubjects(),
+              builder: (context, snapshot) {
+                final subjects = <String>['All', ...(snapshot.data?.cast<String>() ?? [])];
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Row(
+                    children: [
+                      _filterDropdown('Subject', subjects, _selectedSubject, (val) {
+                        setState(() => _selectedSubject = val == 'All' ? null : val);
+                      }),
+                      _actionChip(
+                        _selectedCourseCode ?? 'Course Code', 
+                        isActive: _selectedCourseCode != null, 
+                        onTap: _showCourseCodeDialog,
+                        onClear: _selectedCourseCode != null ? () => setState(() => _selectedCourseCode = null) : null,
+                      ),
+                      _filterChip(
+                        label: 'Latest', 
+                        isActive: _sortByLatest, 
+                        onSelected: (val) {
+                          setState(() {
+                            _sortByLatest = val;
+                            if (_sortByLatest) _sortByTopRated = false;
+                          });
+                        }
+                      ),
+                      _filterChip(
+                        label: 'Top Rated', 
+                        isActive: _sortByTopRated, 
+                        onSelected: (val) {
+                          setState(() {
+                            _sortByTopRated = val;
+                            if (_sortByTopRated) _sortByLatest = false;
+                          });
+                        }
+                      ),
+                    ],
                   ),
-                  _filterChip(
-                    label: 'Latest', 
-                    isActive: _sortByLatest, 
-                    onSelected: (val) {
-                      setState(() {
-                        _sortByLatest = val;
-                        if (_sortByLatest) _sortByTopRated = false;
-                      });
-                    }
-                  ),
-                  _filterChip(
-                    label: 'Top Rated', 
-                    isActive: _sortByTopRated, 
-                    onSelected: (val) {
-                      setState(() {
-                        _sortByTopRated = val;
-                        if (_sortByTopRated) _sortByLatest = false;
-                      });
-                    }
-                  ),
-                ],
-              ),
-            ),
+                );
+              }
+            ).animate().fade(duration: 400.ms).slideX(begin: 0.1),
 
             const SizedBox(height: 10),
 
@@ -208,9 +219,11 @@ class _SearchScreenState extends State<SearchScreen> {
                     // Client-side filtering
                     final filteredResources = allResources.where((res) {
                       final title = res.title.toLowerCase();
+                      final description = res.description.toLowerCase();
                       final query = _searchQuery.toLowerCase();
                       
                       final matchesSearch = title.contains(query) ||
+                                           description.contains(query) ||
                                            res.tags.any((t) => t.toLowerCase().contains(query));
                       
                       final matchesSubject = _selectedSubject == null || res.subject == _selectedSubject;
@@ -218,14 +231,33 @@ class _SearchScreenState extends State<SearchScreen> {
                       final matchesCourse = _selectedCourseCode == null || 
                                            res.courseCode.toUpperCase().contains(_selectedCourseCode!.toUpperCase());
                       
-                      return (matchesSearch == true) && (matchesSubject == true) && (matchesCourse == true);
+                      if (!(matchesSearch && matchesSubject && matchesCourse)) return false;
+
+                      // Strict Filters from home screen
+                      if (widget.enforceStrictTrending) {
+                         final int ageInMinutes = DateTime.now().difference(res.createdAt).inMinutes;
+                         bool hasHighRating = res.rating >= 3.5;
+                         bool hasFastDownloads = res.downloads > 20 && ageInMinutes <= 60;
+                         if (!hasHighRating && !hasFastDownloads) return false;
+                      }
+
+                      if (widget.enforceStrictLatestHours != null) {
+                         final int ageInHours = DateTime.now().difference(res.createdAt).inHours;
+                         if (ageInHours > widget.enforceStrictLatestHours!) return false;
+                         
+                         // Consistency with FirebaseService streamLatestResources quality filter
+                         final totalVotes = res.upvotes.length + res.downvotes.length;
+                         if (totalVotes >= 3 && res.rating < 2.5) return false;
+                      }
+                      
+                      return true;
                     }).toList();
 
                     // Sorting
                     if (_sortByLatest) {
                       filteredResources.sort((a, b) => b.createdAt.compareTo(a.createdAt));
                     } else if (_sortByTopRated) {
-                      filteredResources.sort((a, b) => b.rating.compareTo(a.rating));
+                      filteredResources.sort((a, b) => _firebaseService.calculateTrendingScore(b).compareTo(_firebaseService.calculateTrendingScore(a)));
                     }
 
                     if (filteredResources.isEmpty) {
@@ -255,7 +287,6 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _filterDropdown(String label, List<String> items, String? current, Function(String?) onChanged) {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(right: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -266,22 +297,30 @@ class _SearchScreenState extends State<SearchScreen> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: current != null 
             ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.3) 
-            : Colors.transparent),
+            : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)),
+        boxShadow: current != null ? [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          )
+        ] : [],
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: current ?? items[0],
-          icon: Icon(Icons.arrow_drop_down, size: 20, color: Theme.of(context).colorScheme.onSurface),
+          icon: Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: current != null ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface),
           style: TextStyle(
             fontSize: 12, 
             color: current != null ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface, 
-            fontWeight: FontWeight.w500
+            fontWeight: current != null ? FontWeight.bold : FontWeight.w500
           ),
           dropdownColor: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
           items: items.map((String value) {
             return DropdownMenuItem<String>(
               value: value,
-              child: Text(value),
+              child: Text(value == 'Computer Science' ? 'CS' : value),
             );
           }).toList(),
           onChanged: onChanged,
@@ -311,12 +350,21 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _actionChip(String label, {required bool isActive, required VoidCallback onTap}) {
+  Widget _actionChip(String label, {required bool isActive, required VoidCallback onTap, VoidCallback? onClear}) {
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
       child: ActionChip(
-        label: Text(label),
-        onPressed: onTap,
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label),
+            if (onClear != null) ...[
+              const SizedBox(width: 6),
+              Icon(Icons.close, size: 14, color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.8)),
+            ],
+          ],
+        ),
+        onPressed: onClear != null ? onClear : onTap,
         labelStyle: TextStyle(
           fontSize: 12, 
           color: isActive ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
@@ -325,6 +373,8 @@ class _SearchScreenState extends State<SearchScreen> {
         backgroundColor: isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surfaceContainer,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         side: BorderSide(color: isActive ? Theme.of(context).colorScheme.primary : Colors.transparent),
+        elevation: isActive ? 4 : 0,
+        shadowColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
       ),
     );
   }

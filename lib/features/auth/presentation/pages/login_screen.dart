@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:project_v2/core/theme/theme_provider.dart';
 import 'package:project_v2/features/auth/presentation/pages/register_screen.dart';
+import 'package:project_v2/features/auth/presentation/pages/forgot_password_screen.dart';
 import 'package:project_v2/features/main_navigation/presentation/pages/main_navigation_bar.dart';
 import 'package:project_v2/services/firebase_service.dart';
 
@@ -16,6 +18,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   late final TextEditingController _emailController;
   late final TextEditingController _passwordController;
   bool _isLoading = false;
+  bool _rememberMe = false;
+  bool _obscurePassword = true;
   final _firebaseService = FirebaseService();
 
   @override
@@ -23,6 +27,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.initState();
     _emailController = TextEditingController();
     _passwordController = TextEditingController();
+    _loadSavedCredentials();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedEmail = prefs.getString('saved_email');
+    final savedPassword = prefs.getString('saved_password');
+    final rememberMe = prefs.getBool('remember_me') ?? false;
+
+    if (rememberMe && mounted) {
+      setState(() {
+        _emailController.text = savedEmail ?? '';
+        _passwordController.text = savedPassword ?? '';
+        _rememberMe = true;
+      });
+    }
+  }
+
+  Future<void> _saveCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_rememberMe) {
+      await prefs.setString('saved_email', _emailController.text.trim());
+      await prefs.setString('saved_password', _passwordController.text);
+      await prefs.setBool('remember_me', true);
+    } else {
+      await prefs.remove('saved_email');
+      await prefs.remove('saved_password');
+      await prefs.setBool('remember_me', false);
+    }
   }
 
   @override
@@ -42,11 +75,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     setState(() => _isLoading = true);
 
-    try {
+     try {
       await _firebaseService.signIn(
         _emailController.text.trim(),
         _passwordController.text,
       );
+
+      await _saveCredentials(); // Save or clear credentials based on _rememberMe
 
       if (mounted) {
         Navigator.pushReplacement(
@@ -115,19 +150,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 20),
               TextField(
                 controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
                   hintText: 'Password',
-                  prefixIcon: Icon(Icons.lock_outline),
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      size: 20,
+                    ),
+                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {},
-                  child: const Text('Forgot Password?'),
-                ),
+              Row(
+                children: [
+                  Checkbox(
+                    value: _rememberMe,
+                    onChanged: (value) => setState(() => _rememberMe = value ?? false),
+                    activeColor: Theme.of(context).colorScheme.primary,
+                  ),
+                  Text(
+                    'Remember Me',
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+                      );
+                    },
+                    child: const Text('Forgot Password?'),
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
               _isLoading 

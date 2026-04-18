@@ -47,6 +47,9 @@ dependencies:
   shared_preferences: ^2.5.4
   syncfusion_flutter_pdfviewer: ^24.2.8
   flutter_animate: ^4.5.0
+  image_picker: ^1.2.1
+  google_generative_ai: ^0.4.7
+  flutter_markdown: ^0.7.7+1
 
 dev_dependencies:
   flutter_test:
@@ -58,6 +61,8 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  mockito: ^5.4.4
+  build_runner: ^2.4.9
   riverpod_lint: ^2.6.3
   custom_lint: ^0.7.0
 
